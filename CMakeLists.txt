@@ -182,244 +182,266 @@ target_include_directories(ftpsrv PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 ftp_add(ftpsrv)
 ftp_set_compile_definitions(ftpsrv)
 
-if (NINTENDO_SWITCH)
-    ftp_set_options(ftpsrv 769 128 1024*64)
-    fetch_minini()
-
-    set(USBHSFS_GPL ON)
-    FetchContent_Declare(libusbhsfs
-        GIT_REPOSITORY https://github.com/DarkMatterCore/libusbhsfs.git
-        GIT_TAG v0.2.9
-    )
-
-    FetchContent_MakeAvailable(libusbhsfs)
-    add_library(libusbhsfs
-        ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_drive.c
-        ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_log.c
-        ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_manager.c
-        ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_mount.c
-        ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_request.c
-        ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_scsi.c
-        ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_utils.c
-    )
-
-    target_include_directories(libusbhsfs PUBLIC ${libusbhsfs_SOURCE_DIR}/include)
-
-    # fatfs stuff
-    target_sources(libusbhsfs PRIVATE
-        ${libusbhsfs_SOURCE_DIR}/source/fatfs/diskio.c
-        ${libusbhsfs_SOURCE_DIR}/source/fatfs/ff_dev.c
-        ${libusbhsfs_SOURCE_DIR}/source/fatfs/ff.c
-        ${libusbhsfs_SOURCE_DIR}/source/fatfs/ffsystem.c
-        ${libusbhsfs_SOURCE_DIR}/source/fatfs/ffunicode.c
-    )
-
-    # sxos stuff
-    target_sources(libusbhsfs PRIVATE
-        ${libusbhsfs_SOURCE_DIR}/source/sxos/usbfs_dev.c
-        ${libusbhsfs_SOURCE_DIR}/source/sxos/usbfs.c
-    )
-
-    if (USBHSFS_GPL)
-        target_sources(libusbhsfs PRIVATE
-            ${libusbhsfs_SOURCE_DIR}/source/lwext4/ext_dev.c
-            ${libusbhsfs_SOURCE_DIR}/source/lwext4/ext_disk_io.c
-            ${libusbhsfs_SOURCE_DIR}/source/lwext4/ext.c
-
-            ${libusbhsfs_SOURCE_DIR}/source/ntfs-3g/ntfs_dev.c
-            ${libusbhsfs_SOURCE_DIR}/source/ntfs-3g/ntfs_disk_io.c
-            ${libusbhsfs_SOURCE_DIR}/source/ntfs-3g/ntfs.c
-        )
-
-        find_library(ntfs_3g_lib ntfs-3g REQUIRED)
-        find_path(ntfs_3g_inc ntfs-3g REQUIRED)
-
-        find_library(lwext4_lib lwext4 REQUIRED)
-        find_path(lwext4_inc ext4.h REQUIRED)
-
-        target_link_libraries(libusbhsfs PRIVATE ${ntfs_3g_lib} ${lwext4_lib})
-        target_include_directories(libusbhsfs PRIVATE ${ntfs_3g_inc} ${lwext4_inc})
-        target_compile_definitions(libusbhsfs PRIVATE GPL_BUILD)
+if (FTPSRV_LIB_BUILD)
+    if (FTPSRV_LIB_SOCK_UNISTD)
+        target_compile_definitions(ftpsrv PRIVATE FTP_SOCKET_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/socket_unistd.h")
     endif()
 
-    target_compile_definitions(ftpsrv PUBLIC
-        FTP_VFS_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/nx/vfs_nx.h"
-        FTP_SOCKET_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/socket_unistd.h"
-        VFS_NX_BUFFER_IO=1
-    )
+    if (FTPSRV_LIB_VFS_UNISTD)
+        target_sources(ftpsrv PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/vfs_unistd.c")
+        target_compile_definitions(ftpsrv PRIVATE FTP_VFS_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/vfs_unistd.h")
+    elseif (FTPSRV_LIB_VFS_STDIO)
+        target_sources(ftpsrv PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/stdio/vfs_stdio.c")
+        target_compile_definitions(ftpsrv PRIVATE FTP_VFS_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/stdio/vfs_stdio.h")
+    elseif(FTPSRV_LIB_VFS_CUSTOM)
+        target_compile_definitions(ftpsrv PUBLIC FTP_VFS_HEADER="${FTPSRV_LIB_VFS_CUSTOM}")
+    endif()
 
-    set(NX_SRC
-        src/platform/nx/vfs_nx.c
-        src/platform/nx/vfs/vfs_nx_none.c
-        src/platform/nx/vfs/vfs_nx_root.c
-        src/platform/nx/vfs/vfs_nx_fs.c
-        src/platform/nx/vfs/vfs_nx_save.c
-        src/platform/nx/vfs/vfs_nx_storage.c
-        src/platform/nx/vfs/vfs_nx_gc.c
-        src/platform/nx/utils.c
-        src/platform/nx/reboot_to_payload/ams_bpc.c
-        src/platform/nx/reboot_to_payload/reboot_to_payload.c
-        src/platform/nx/rtc/max77620-rtc.c
-        src/platform/nx/custom_commands.c
-        src/log/log.c
-    )
-
-    add_executable(ftpexe
-        src/platform/nx/main.c
-        src/platform/nx/vfs/vfs_nx_stdio.c
-        src/platform/nx/vfs/vfs_nx_hdd.c
-        ${NX_SRC}
-    )
-    target_compile_definitions(ftpexe PUBLIC USE_USBHSFS=1)
-    ftp_add(ftpexe)
-    target_link_libraries(ftpexe PRIVATE ftpsrv minIni libusbhsfs)
-
-    nx_generate_nacp(
-        OUTPUT ftpexe.nacp
-        NAME ${CMAKE_PROJECT_NAME}
-        AUTHOR TotalJustice
-        VERSION ${CMAKE_PROJECT_VERSION}
-    )
-
-    nx_create_nro(ftpexe
-        OUTPUT ${CMAKE_BINARY_DIR}/ftpexe.nro
-        NACP ftpexe.nacp
-    )
-
-    add_library(ftpsrv_sysmod src/ftpsrv.c)
-    target_include_directories(ftpsrv_sysmod PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
-    ftp_add(ftpsrv_sysmod)
-    ftp_set_options(ftpsrv_sysmod 769 5 1024*64)
-
-    target_compile_definitions(ftpsrv_sysmod PUBLIC
-        FTP_VFS_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/nx/vfs_nx.h"
-        FTP_SOCKET_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/socket_unistd.h"
-        VFS_NX_BUFFER_IO=0
-    )
-
-    add_executable(sysftp
-        src/platform/nx/main_sysmod.c
-        ${NX_SRC}
-    )
-    ftp_add(sysftp)
-    target_link_libraries(sysftp PRIVATE ftpsrv_sysmod minIni)
-
-    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/420000000000011B)
-    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/420000000000011B/flags)
-
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/platform/nx/sysftp.json ${CMAKE_CURRENT_BINARY_DIR}/sysftp.json)
-
-    add_custom_command(
-        TARGET ftpexe POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy
-            ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/nx/toolbox.json
-            ${CMAKE_CURRENT_BINARY_DIR}/420000000000011B/toolbox.json
-
-        COMMAND ${CMAKE_COMMAND} -E touch
-            ${CMAKE_CURRENT_BINARY_DIR}/420000000000011B/flags/boot2.flag
-    )
-
-    nx_create_exefs(sysftp
-        OUTPUT 420000000000011B/exefs.nsp
-        CONFIG ${CMAKE_CURRENT_BINARY_DIR}/sysftp.json
-    )
-elseif(NINTENDO_DS)
-    ftp_set_options(ftpsrv 769 16 1024*64)
-    fetch_minini()
-
-    target_compile_definitions(ftpsrv PUBLIC
-        FTP_VFS_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/vfs_unistd.h"
-        FTP_SOCKET_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/nds/socket_nds.h"
-    )
-
-    add_executable(ftpexe
-        src/platform/nds/main.c
-        src/platform/unistd/vfs_unistd.c
-        src/log/log.c
-    )
-    target_link_libraries(ftpexe PRIVATE ftpsrv minIni fat dswifi9)
-    ftp_add(ftpexe)
-
-    nds_create_rom(ftpexe
-        NAME "FTPSrv"
-        SUBTITLE1 "FTPS"
-        SUBTITLE2 "TJ"
-    )
-elseif(NINTENDO_3DS)
-    ftp_set_options(ftpsrv 769 64 1024*64)
-    fetch_minini()
-
-    target_compile_definitions(ftpsrv PUBLIC
-        FTP_VFS_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/vfs_unistd.h"
-        FTP_SOCKET_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/socket_unistd.h"
-    )
-
-    add_executable(ftpexe
-        src/platform/3ds/main.c
-        src/platform/unistd/vfs_unistd.c
-        src/log/log.c
-    )
-    target_link_libraries(ftpexe PRIVATE ftpsrv minIni)
-    ftp_add(ftpexe)
-
-    ctr_generate_smdh(${PROJECT_NAME}.smdh
-        NAME "${PROJECT_NAME}"
-        DESCRIPTION "v${PROJECT_VERSION}"
-        AUTHOR "TotalJustice"
-    )
-
-    ctr_create_3dsx(ftpexe
-        SMDH ${PROJECT_NAME}.smdh
-    )
-elseif(NINTENDO_WII)
-    ftp_set_options(ftpsrv 769 10 1024*64)
-    fetch_minini()
-
-    target_compile_definitions(ftpsrv PUBLIC
-        FTP_VFS_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/vfs_unistd.h"
-        FTP_SOCKET_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/wii/socket_wii.h"
-    )
-
-    add_executable(ftpexe
-        src/platform/wii/main.c
-        src/platform/unistd/vfs_unistd.c
-        src/log/log.c
-    )
-    target_link_libraries(ftpexe PRIVATE ftpsrv fat minIni)
-    ftp_add(ftpexe)
-
-    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/apps/ftpsrv)
-    ogc_create_dol(ftpexe)
-
-    add_custom_command(
-        TARGET ftpexe POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy
-            ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/wii/icon.png
-            ${CMAKE_CURRENT_BINARY_DIR}/apps/ftpsrv/icon.png
-
-        COMMAND ${CMAKE_COMMAND} -E copy
-            ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/wii/meta.xml
-            ${CMAKE_CURRENT_BINARY_DIR}/apps/ftpsrv/meta.xml
-
-        COMMAND ${CMAKE_COMMAND} -E copy
-            ${CMAKE_CURRENT_BINARY_DIR}/ftpexe.dol
-            ${CMAKE_CURRENT_BINARY_DIR}/apps/ftpsrv/boot.dol
+    ftp_set_options(ftpsrv
+        ${FTPSRV_LIB_PATH_SIZE}
+        ${FTPSRV_LIB_SESSIONS}
+        ${FTPSRV_LIB_BUF_SIZE}
     )
 else()
-    target_compile_definitions(ftpsrv PRIVATE
-        FTP_FILE_BUFFER_SIZE=1024*512
-    )
-    target_compile_definitions(ftpsrv PUBLIC
-        FTP_VFS_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/vfs_unistd.h"
-        FTP_SOCKET_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/socket_unistd.h"
-        FTP_VFS_FD=1
-    )
+    if (NINTENDO_SWITCH)
+        ftp_set_options(ftpsrv 769 128 1024*64)
+        fetch_minini()
 
-    add_executable(ftpexe
-        src/platform/unistd/main.c
-        src/platform/unistd/vfs_unistd.c
-        src/args/args.c
-    )
-    target_link_libraries(ftpexe PRIVATE ftpsrv)
-    ftp_add(ftpexe)
+        set(USBHSFS_GPL ON)
+        FetchContent_Declare(libusbhsfs
+            GIT_REPOSITORY https://github.com/DarkMatterCore/libusbhsfs.git
+            GIT_TAG v0.2.9
+        )
+
+        FetchContent_MakeAvailable(libusbhsfs)
+        add_library(libusbhsfs
+            ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_drive.c
+            ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_log.c
+            ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_manager.c
+            ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_mount.c
+            ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_request.c
+            ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_scsi.c
+            ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_utils.c
+        )
+
+        target_include_directories(libusbhsfs PUBLIC ${libusbhsfs_SOURCE_DIR}/include)
+
+        # fatfs stuff
+        target_sources(libusbhsfs PRIVATE
+            ${libusbhsfs_SOURCE_DIR}/source/fatfs/diskio.c
+            ${libusbhsfs_SOURCE_DIR}/source/fatfs/ff_dev.c
+            ${libusbhsfs_SOURCE_DIR}/source/fatfs/ff.c
+            ${libusbhsfs_SOURCE_DIR}/source/fatfs/ffsystem.c
+            ${libusbhsfs_SOURCE_DIR}/source/fatfs/ffunicode.c
+        )
+
+        # sxos stuff
+        target_sources(libusbhsfs PRIVATE
+            ${libusbhsfs_SOURCE_DIR}/source/sxos/usbfs_dev.c
+            ${libusbhsfs_SOURCE_DIR}/source/sxos/usbfs.c
+        )
+
+        if (USBHSFS_GPL)
+            target_sources(libusbhsfs PRIVATE
+                ${libusbhsfs_SOURCE_DIR}/source/lwext4/ext_dev.c
+                ${libusbhsfs_SOURCE_DIR}/source/lwext4/ext_disk_io.c
+                ${libusbhsfs_SOURCE_DIR}/source/lwext4/ext.c
+
+                ${libusbhsfs_SOURCE_DIR}/source/ntfs-3g/ntfs_dev.c
+                ${libusbhsfs_SOURCE_DIR}/source/ntfs-3g/ntfs_disk_io.c
+                ${libusbhsfs_SOURCE_DIR}/source/ntfs-3g/ntfs.c
+            )
+
+            find_library(ntfs_3g_lib ntfs-3g REQUIRED)
+            find_path(ntfs_3g_inc ntfs-3g REQUIRED)
+
+            find_library(lwext4_lib lwext4 REQUIRED)
+            find_path(lwext4_inc ext4.h REQUIRED)
+
+            target_link_libraries(libusbhsfs PRIVATE ${ntfs_3g_lib} ${lwext4_lib})
+            target_include_directories(libusbhsfs PRIVATE ${ntfs_3g_inc} ${lwext4_inc})
+            target_compile_definitions(libusbhsfs PRIVATE GPL_BUILD)
+        endif()
+
+        target_compile_definitions(ftpsrv PUBLIC
+            FTP_VFS_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/nx/vfs_nx.h"
+            FTP_SOCKET_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/socket_unistd.h"
+            VFS_NX_BUFFER_WRITES=1
+        )
+
+        set(NX_SRC
+            src/platform/nx/vfs_nx.c
+            src/platform/nx/vfs/vfs_nx_none.c
+            src/platform/nx/vfs/vfs_nx_root.c
+            src/platform/nx/vfs/vfs_nx_fs.c
+            src/platform/nx/vfs/vfs_nx_save.c
+            src/platform/nx/vfs/vfs_nx_storage.c
+            src/platform/nx/vfs/vfs_nx_gc.c
+            src/platform/nx/utils.c
+            src/platform/nx/reboot_to_payload/ams_bpc.c
+            src/platform/nx/reboot_to_payload/reboot_to_payload.c
+            src/platform/nx/rtc/max77620-rtc.c
+            src/platform/nx/custom_commands.c
+            src/log/log.c
+        )
+
+        add_executable(ftpexe
+            src/platform/nx/main.c
+            src/platform/nx/vfs/vfs_nx_stdio.c
+            src/platform/nx/vfs/vfs_nx_hdd.c
+            ${NX_SRC}
+        )
+        target_compile_definitions(ftpexe PUBLIC USE_USBHSFS=1)
+        ftp_add(ftpexe)
+        target_link_libraries(ftpexe PRIVATE ftpsrv minIni libusbhsfs)
+
+        nx_generate_nacp(
+            OUTPUT ftpexe.nacp
+            NAME ${CMAKE_PROJECT_NAME}
+            AUTHOR TotalJustice
+            VERSION ${CMAKE_PROJECT_VERSION}
+        )
+
+        nx_create_nro(ftpexe
+            OUTPUT ${CMAKE_BINARY_DIR}/ftpexe.nro
+            NACP ftpexe.nacp
+        )
+
+        add_library(ftpsrv_sysmod src/ftpsrv.c)
+        target_include_directories(ftpsrv_sysmod PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+        ftp_add(ftpsrv_sysmod)
+        ftp_set_options(ftpsrv_sysmod 769 5 1024*64)
+
+        target_compile_definitions(ftpsrv_sysmod PUBLIC
+            FTP_VFS_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/nx/vfs_nx.h"
+            FTP_SOCKET_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/socket_unistd.h"
+            VFS_NX_BUFFER_WRITES=0
+        )
+
+        add_executable(sysftp
+            src/platform/nx/main_sysmod.c
+            ${NX_SRC}
+        )
+        ftp_add(sysftp)
+        target_link_libraries(sysftp PRIVATE ftpsrv_sysmod minIni)
+
+        file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/420000000000011B)
+        file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/420000000000011B/flags)
+
+        configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/platform/nx/sysftp.json ${CMAKE_CURRENT_BINARY_DIR}/sysftp.json)
+
+        add_custom_command(
+            TARGET ftpexe POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/nx/toolbox.json
+                ${CMAKE_CURRENT_BINARY_DIR}/420000000000011B/toolbox.json
+
+            COMMAND ${CMAKE_COMMAND} -E touch
+                ${CMAKE_CURRENT_BINARY_DIR}/420000000000011B/flags/boot2.flag
+        )
+
+        nx_create_exefs(sysftp
+            OUTPUT 420000000000011B/exefs.nsp
+            CONFIG ${CMAKE_CURRENT_BINARY_DIR}/sysftp.json
+        )
+    elseif(NINTENDO_DS)
+        ftp_set_options(ftpsrv 769 16 1024*64)
+        fetch_minini()
+
+        target_compile_definitions(ftpsrv PUBLIC
+            FTP_VFS_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/vfs_unistd.h"
+            FTP_SOCKET_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/nds/socket_nds.h"
+        )
+
+        add_executable(ftpexe
+            src/platform/nds/main.c
+            src/platform/unistd/vfs_unistd.c
+            src/log/log.c
+        )
+        target_link_libraries(ftpexe PRIVATE ftpsrv minIni fat dswifi9)
+        ftp_add(ftpexe)
+
+        nds_create_rom(ftpexe
+            NAME "FTPSrv"
+            SUBTITLE1 "FTPS"
+            SUBTITLE2 "TJ"
+        )
+    elseif(NINTENDO_3DS)
+        ftp_set_options(ftpsrv 769 64 1024*64)
+        fetch_minini()
+
+        target_compile_definitions(ftpsrv PUBLIC
+            FTP_VFS_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/vfs_unistd.h"
+            FTP_SOCKET_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/socket_unistd.h"
+        )
+
+        add_executable(ftpexe
+            src/platform/3ds/main.c
+            src/platform/unistd/vfs_unistd.c
+            src/log/log.c
+        )
+        target_link_libraries(ftpexe PRIVATE ftpsrv minIni)
+        ftp_add(ftpexe)
+
+        ctr_generate_smdh(${PROJECT_NAME}.smdh
+            NAME "${PROJECT_NAME}"
+            DESCRIPTION "v${PROJECT_VERSION}"
+            AUTHOR "TotalJustice"
+        )
+
+        ctr_create_3dsx(ftpexe
+            SMDH ${PROJECT_NAME}.smdh
+        )
+    elseif(NINTENDO_WII)
+        ftp_set_options(ftpsrv 769 10 1024*64)
+        fetch_minini()
+
+        target_compile_definitions(ftpsrv PUBLIC
+            FTP_VFS_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/vfs_unistd.h"
+            FTP_SOCKET_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/wii/socket_wii.h"
+        )
+
+        add_executable(ftpexe
+            src/platform/wii/main.c
+            src/platform/unistd/vfs_unistd.c
+            src/log/log.c
+        )
+        target_link_libraries(ftpexe PRIVATE ftpsrv fat minIni)
+        ftp_add(ftpexe)
+
+        file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/apps/ftpsrv)
+        ogc_create_dol(ftpexe)
+
+        add_custom_command(
+            TARGET ftpexe POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/wii/icon.png
+                ${CMAKE_CURRENT_BINARY_DIR}/apps/ftpsrv/icon.png
+
+            COMMAND ${CMAKE_COMMAND} -E copy
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/wii/meta.xml
+                ${CMAKE_CURRENT_BINARY_DIR}/apps/ftpsrv/meta.xml
+
+            COMMAND ${CMAKE_COMMAND} -E copy
+                ${CMAKE_CURRENT_BINARY_DIR}/ftpexe.dol
+                ${CMAKE_CURRENT_BINARY_DIR}/apps/ftpsrv/boot.dol
+        )
+    else()
+        target_compile_definitions(ftpsrv PRIVATE
+            FTP_FILE_BUFFER_SIZE=1024*512
+        )
+        target_compile_definitions(ftpsrv PUBLIC
+            FTP_VFS_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/vfs_unistd.h"
+            FTP_SOCKET_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/socket_unistd.h"
+            FTP_VFS_FD=1
+        )
+
+        add_executable(ftpexe
+            src/platform/unistd/main.c
+            src/platform/unistd/vfs_unistd.c
+            src/args/args.c
+        )
+        target_link_libraries(ftpexe PRIVATE ftpsrv)
+        ftp_add(ftpexe)
+    endif()
 endif()
