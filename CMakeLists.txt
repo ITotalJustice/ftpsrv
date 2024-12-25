@@ -245,7 +245,7 @@ if (NINTENDO_SWITCH)
     target_compile_definitions(ftpsrv PUBLIC
         FTP_VFS_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/nx/vfs_nx.h"
         FTP_SOCKET_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/socket_unistd.h"
-        VFS_NX_BUFFER_WRITES=1
+        VFS_NX_BUFFER_IO=1
     )
 
     set(NX_SRC
@@ -294,7 +294,7 @@ if (NINTENDO_SWITCH)
     target_compile_definitions(ftpsrv_sysmod PUBLIC
         FTP_VFS_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/nx/vfs_nx.h"
         FTP_SOCKET_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/socket_unistd.h"
-        VFS_NX_BUFFER_WRITES=0
+        VFS_NX_BUFFER_IO=0
     )
 
     add_executable(sysftp

@@ -341,7 +341,7 @@ static time_t fsdev_converttimetoutc(u64 timestamp)
   return posixtime;
 }
 
-#if VFS_NX_BUFFER_WRITES
+#if VFS_NX_BUFFER_IO
 static Result flush_buffered_write(struct VfsFsFile* f) {
     Result rc;
     if (R_SUCCEEDED(rc = fsFileSetSize(&f->fd, f->off + f->buf_off))) {
@@ -379,9 +379,11 @@ int vfs_fs_internal_open(FsFileSystem* fs, struct VfsFsFile* f, const char nxpat
     u32 open_mode;
     if (mode == FtpVfsOpenMode_READ) {
         open_mode = FsOpenMode_Read;
+        f->is_write = false;
     } else {
         fsFsCreateFile(fs, nxpath, 0, 0);
         open_mode = FsOpenMode_Write;
+        f->is_write = true;
     }
 
     Result rc;
@@ -390,8 +392,8 @@ int vfs_fs_internal_open(FsFileSystem* fs, struct VfsFsFile* f, const char nxpat
     }
 
     f->off = f->chunk_size = 0;
-#if VFS_NX_BUFFER_WRITES
-    f->buf_off = 0;
+#if VFS_NX_BUFFER_IO
+    f->buf_off = f->buf_size = 0;
 #endif
 
     if (mode == FtpVfsOpenMode_WRITE) {
@@ -415,19 +417,41 @@ fail_close:
 
 int vfs_fs_internal_read(struct VfsFsFile* f, void* buf, size_t size) {
     Result rc;
+
+#if VFS_NX_BUFFER_IO
+    if (f->buf_off == f->buf_size) {
+        u64 bytes_read;
+        if (R_FAILED(rc = fsFileRead(&f->fd, f->off, f->buf, sizeof(f->buf), FsReadOption_None, &bytes_read))) {
+            return vfs_fs_set_errno(rc);
+        }
+
+        f->buf_off = 0;
+        f->buf_size = bytes_read;
+    }
+
+    if (!f->buf_size) {
+        return 0;
+    }
+
+    size = size < f->buf_size - f->buf_off ? size : f->buf_size - f->buf_off;
+    memcpy(buf, f->buf + f->buf_off, size);
+    f->off += size;
+    f->buf_off += size;
+    return size;
+#else
     u64 bytes_read;
     if (R_FAILED(rc = fsFileRead(&f->fd, f->off, buf, size, FsReadOption_None, &bytes_read))) {
         return vfs_fs_set_errno(rc);
     }
-
     f->off += bytes_read;
     return bytes_read;
+#endif
 }
 
 int vfs_fs_internal_write(struct VfsFsFile* f, const void* buf, size_t size) {
     Result rc;
 
-#if VFS_NX_BUFFER_WRITES
+#if VFS_NX_BUFFER_IO
     const size_t ret = size;
     while (size) {
         if (f->buf_off + size > sizeof(f->buf)) {
@@ -469,6 +493,11 @@ int vfs_fs_internal_write(struct VfsFsFile* f, const void* buf, size_t size) {
 }
 
 int vfs_fs_internal_seek(struct VfsFsFile* f, size_t off) {
+#if VFS_NX_BUFFER_IO
+    if (!f->is_write) {
+        f->buf_off -= f->off - off;
+    }
+#endif
     f->off = off;
     return 0;
 }
@@ -478,12 +507,9 @@ int vfs_fs_internal_close(struct VfsFsFile* f) {
         return -1;
     }
 
-#if VFS_NX_BUFFER_WRITES
+#if VFS_NX_BUFFER_IO
     if (f->buf_off) {
         flush_buffered_write(f);
-        if (R_SUCCEEDED(fsFileSetSize(&f->fd, f->off + f->buf_off))) {
-            fsFileWrite(&f->fd, f->off, f->buf, f->buf_off, FsWriteOption_None);
-        }
     }
 #else
     if (f->chunk_size) {
@@ -553,7 +579,7 @@ int vfs_fs_internal_closedir(struct VfsFsDir* f) {
     }
 
     fsDirClose(&f->dir);
-    memset(f, 0, sizeof(*f));
+    f->is_valid = false;
     return 0;
 }
 
