@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.13)
 
 set(FTPSRV_VERSION_MAJOR 1)
 set(FTPSRV_VERSION_MINOR 2)
-set(FTPSRV_VERSION_PATCH 0)
+set(FTPSRV_VERSION_PATCH 1)
 set(FTPSRV_VERSION ${FTPSRV_VERSION_MAJOR}.${FTPSRV_VERSION_MINOR}.${FTPSRV_VERSION_PATCH})
 
 project(ftpsrv
@@ -209,6 +209,10 @@ if (FTPSRV_LIB_BUILD)
         target_compile_definitions(ftpsrv PUBLIC FTP_VFS_HEADER="${FTPSRV_LIB_VFS_CUSTOM}")
     endif()
 
+    if (FTPSRV_LIB_CUSTOM_DEFINES)
+        target_compile_definitions(ftpsrv PUBLIC ${FTPSRV_LIB_CUSTOM_DEFINES})
+    endif()
+
     ftp_set_options(ftpsrv
         ${FTPSRV_LIB_PATH_SIZE}
         ${FTPSRV_LIB_SESSIONS}
@@ -266,7 +270,7 @@ else()
             ${NX_SRC}
         )
 
-        target_compile_definitions(ftpexe PUBLIC
+        target_compile_definitions(ftpsrv PUBLIC
             USE_VFS_SAVE=$<BOOL:${USE_VFS_SAVE}>
             USE_VFS_STORAGE=$<BOOL:${USE_VFS_STORAGE}>
             USE_VFS_GC=$<BOOL:${USE_VFS_GC}>
@@ -371,7 +375,7 @@ else()
         ftp_add(sysftp)
         target_link_libraries(sysftp PRIVATE ftpsrv_sysmod minIni)
 
-        target_compile_definitions(ftpexe PUBLIC
+        target_compile_definitions(ftpsrv_sysmod PUBLIC
             USE_VFS_SAVE=$<BOOL:${USE_VFS_SAVE}>
             USE_VFS_STORAGE=$<BOOL:${USE_VFS_STORAGE}>
             USE_VFS_GC=$<BOOL:${USE_VFS_GC}>
