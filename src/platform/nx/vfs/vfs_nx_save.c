@@ -604,7 +604,7 @@ static struct SavePathData get_type(const char* path) {
     return data;
 }
 
-static void build_native_path(char out[static FS_MAX_PATH], const char* path, const struct SavePathData* data) {
+static void build_native_path(char out[FS_MAX_PATH], const char* path, const struct SavePathData* data) {
     if (strlen(path + data->path_off)) {
         snprintf(out, FS_MAX_PATH, "%s", path + data->path_off);
     } else {

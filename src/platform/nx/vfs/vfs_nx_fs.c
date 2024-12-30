@@ -328,7 +328,7 @@ static Result flush_buffered_write(struct VfsFsFile* f) {
 }
 #endif
 
-static int fstat_internal(FsFileSystem* fs, FsFile* file, const char nxpath[static FS_MAX_PATH], struct stat* st) {
+static int fstat_internal(FsFileSystem* fs, FsFile* file, const char nxpath[FS_MAX_PATH], struct stat* st) {
     memset(st, 0, sizeof(*st));
 
     Result rc;
@@ -352,7 +352,7 @@ static int fstat_internal(FsFileSystem* fs, FsFile* file, const char nxpath[stat
     return 0;
 }
 
-int vfs_fs_internal_open(FsFileSystem* fs, struct VfsFsFile* f, const char nxpath[static FS_MAX_PATH], enum FtpVfsOpenMode mode) {
+int vfs_fs_internal_open(FsFileSystem* fs, struct VfsFsFile* f, const char nxpath[FS_MAX_PATH], enum FtpVfsOpenMode mode) {
     u32 open_mode;
     if (mode == FtpVfsOpenMode_READ) {
         open_mode = FsOpenMode_Read;
@@ -503,7 +503,7 @@ int vfs_fs_internal_isfile_open(struct VfsFsFile* f) {
     return f->is_valid;
 }
 
-int vfs_fs_internal_opendir(FsFileSystem* fs, struct VfsFsDir* f, const char nxpath[static FS_MAX_PATH]) {
+int vfs_fs_internal_opendir(FsFileSystem* fs, struct VfsFsDir* f, const char nxpath[FS_MAX_PATH]) {
     Result rc;
     if (R_FAILED(rc = fsFsOpenDirectory(fs, nxpath, FsDirOpenMode_ReadDirs | FsDirOpenMode_ReadFiles, &f->dir))) {
         return vfs_fs_set_errno(rc);
@@ -528,7 +528,7 @@ const char* vfs_fs_internal_readdir(struct VfsFsDir* f, struct VfsFsDirEntry* en
     return entry->buf.name;
 }
 
-int vfs_fs_internal_dirlstat(FsFileSystem* fs, struct VfsFsDir* f, const struct VfsFsDirEntry* entry, const char nxpath[static FS_MAX_PATH], struct stat* st) {
+int vfs_fs_internal_dirlstat(FsFileSystem* fs, struct VfsFsDir* f, const struct VfsFsDirEntry* entry, const char nxpath[FS_MAX_PATH], struct stat* st) {
     memset(st, 0, sizeof(*st));
     st->st_nlink = 1;
 
@@ -564,7 +564,7 @@ int vfs_fs_internal_isdir_open(struct VfsFsDir* f) {
     return f->is_valid;
 }
 
-int vfs_fs_internal_stat(FsFileSystem* fs, const char nxpath[static FS_MAX_PATH], struct stat* st) {
+int vfs_fs_internal_stat(FsFileSystem* fs, const char nxpath[FS_MAX_PATH], struct stat* st) {
     memset(st, 0, sizeof(*st));
 
     Result rc;
@@ -590,11 +590,11 @@ int vfs_fs_internal_stat(FsFileSystem* fs, const char nxpath[static FS_MAX_PATH]
     return 0;
 }
 
-int vfs_fs_internal_lstat(FsFileSystem* fs, const char nxpath[static FS_MAX_PATH], struct stat* st) {
+int vfs_fs_internal_lstat(FsFileSystem* fs, const char nxpath[FS_MAX_PATH], struct stat* st) {
     return vfs_fs_internal_stat(fs, nxpath, st);
 }
 
-int vfs_fs_internal_mkdir(FsFileSystem* fs, const char nxpath[static FS_MAX_PATH]) {
+int vfs_fs_internal_mkdir(FsFileSystem* fs, const char nxpath[FS_MAX_PATH]) {
     Result rc;
     if (R_FAILED(rc = fsFsCreateDirectory(fs, nxpath))) {
         return vfs_fs_set_errno(rc);
@@ -603,7 +603,7 @@ int vfs_fs_internal_mkdir(FsFileSystem* fs, const char nxpath[static FS_MAX_PATH
     return 0;
 }
 
-int vfs_fs_internal_unlink(FsFileSystem* fs, const char nxpath[static FS_MAX_PATH]) {
+int vfs_fs_internal_unlink(FsFileSystem* fs, const char nxpath[FS_MAX_PATH]) {
     Result rc;
     if (R_FAILED(rc = fsFsDeleteFile(fs, nxpath))) {
         return vfs_fs_set_errno(rc);
@@ -612,7 +612,7 @@ int vfs_fs_internal_unlink(FsFileSystem* fs, const char nxpath[static FS_MAX_PAT
     return 0;
 }
 
-int vfs_fs_internal_rmdir(FsFileSystem* fs, const char nxpath[static FS_MAX_PATH]) {
+int vfs_fs_internal_rmdir(FsFileSystem* fs, const char nxpath[FS_MAX_PATH]) {
     Result rc;
     if (R_FAILED(rc = fsFsDeleteDirectory(fs, nxpath))) {
         return vfs_fs_set_errno(rc);
@@ -621,7 +621,7 @@ int vfs_fs_internal_rmdir(FsFileSystem* fs, const char nxpath[static FS_MAX_PATH
     return 0;
 }
 
-int vfs_fs_internal_rename(FsFileSystem* fs, const char nxpath_src[static FS_MAX_PATH], const char nxpath_dst[static FS_MAX_PATH]) {
+int vfs_fs_internal_rename(FsFileSystem* fs, const char nxpath_src[FS_MAX_PATH], const char nxpath_dst[FS_MAX_PATH]) {
     Result rc;
     FsDirEntryType type;
     if (R_FAILED(rc = fsFsGetEntryType(fs, nxpath_src, &type))) {

@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-static void build_native_path(char out[static FS_MAX_PATH], const char* path) {
+static void build_native_path(char out[FS_MAX_PATH], const char* path) {
     const char* dilem = strchr(path, ':');
 
     if (dilem && strlen(dilem + 1)) {
