@@ -78,6 +78,16 @@ check_c_source_compiles("
     int main(void) { strncasecmp(0, 0, 0); }"
 HAVE_STRNCASECMP)
 
+check_c_source_compiles("
+    #include <time.h>
+    int main(void) { localtime_r(0, 0); }"
+HAVE_LOCALTIME_R)
+
+check_c_source_compiles("
+    #include <time.h>
+    int main(void) { localtime_s(0, 0); }"
+HAVE_LOCALTIME_S)
+
 find_package(Git REQUIRED)
 
 execute_process(
@@ -127,6 +137,8 @@ function(ftp_set_compile_definitions target)
             HAVE_GETPWUID=$<BOOL:${HAVE_GETPWUID}>
             HAVE_GETGRGID=$<BOOL:${HAVE_GETGRGID}>
             HAVE_STRNCASECMP=$<BOOL:${HAVE_STRNCASECMP}>
+            HAVE_LOCALTIME_R=$<BOOL:${HAVE_LOCALTIME_R}>
+            HAVE_LOCALTIME_S=$<BOOL:${HAVE_LOCALTIME_S}>
             HAVE_POLL=$<BOOL:${HAVE_POLL}>
             HAVE_IPTOS_THROUGHPUT=$<BOOL:${HAVE_IPTOS_THROUGHPUT}>
             HAVE_TCP_NODELAY=$<BOOL:${HAVE_TCP_NODELAY}>

@@ -96,10 +96,10 @@ static u32 mmz_build_local_header(const struct mmz_Data* mz, struct mmz_LocalHea
     local->sig = LOCAL_HEADER_SIG;
     local->flags = 1 << 3; // data descriptor
     local->filename_len = mz->meta.string_len;
-    const struct tm* gmt = gmtime(&mz->time);
-    if (gmt) {
-        local->modtime = (gmt->tm_sec) | ((gmt->tm_min) << 5) | (gmt->tm_hour << 11);
-        local->moddate = (gmt->tm_mday) | ((gmt->tm_mon + 1) << 5) | ((gmt->tm_year > 80 ? gmt->tm_year - 80 : 0) << 9);
+    struct tm tm = {0};
+    if (localtime_r(&mz->time, &tm)) {
+        local->modtime = (tm.tm_sec) | ((tm.tm_min) << 5) | (tm.tm_hour << 11);
+        local->moddate = (tm.tm_mday) | ((tm.tm_mon + 1) << 5) | ((tm.tm_year > 80 ? tm.tm_year - 80 : 0) << 9);
     }
     return sizeof(*local) + mz->meta.string_len;
 }
@@ -114,10 +114,10 @@ static u32 mmz_build_file_header(const struct mmz_Data* mz, struct mmz_FileHeade
     file->uncompressed_size = mz->meta.size;
     file->filename_len = mz->meta.string_len;
     file->local_hdr_off = mz->local_hdr_off;
-    const struct tm* gmt = gmtime(&mz->time);
-    if (gmt) {
-        file->modtime = (gmt->tm_sec) | ((gmt->tm_min) << 5) | (gmt->tm_hour << 11);
-        file->moddate = (gmt->tm_mday) | ((gmt->tm_mon + 1) << 5) | ((gmt->tm_year > 80 ? gmt->tm_year - 80 : 0) << 9);
+    struct tm tm = {0};
+    if (localtime_r(&mz->time, &tm)) {
+        file->modtime = (tm.tm_sec) | ((tm.tm_min) << 5) | (tm.tm_hour << 11);
+        file->moddate = (tm.tm_mday) | ((tm.tm_mon + 1) << 5) | ((tm.tm_year > 80 ? tm.tm_year - 80 : 0) << 9);
     }
     return sizeof(*file) + mz->meta.string_len;
 }

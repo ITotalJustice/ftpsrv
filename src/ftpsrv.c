@@ -195,6 +195,20 @@ static int strncasecmp(const char* a, const char* b, size_t len) {
 }
 #endif
 
+static struct tm* unpack_time(const time_t* timer, struct tm* buf) {
+#if HAVE_LOCALTIME_R
+    return localtime_r(timer, buf);
+#elif HAVE_LOCALTIME_S
+    return localtime_s(timer, buf);
+#else
+    struct tm* r = localtime(timer);
+    if (r) {
+        *buf = *r;
+    }
+    return r;
+#endif
+}
+
 static size_t ftp_get_timestamp_ms(void) {
     struct timeval ts;
     gettimeofday(&ts, NULL);
@@ -388,10 +402,7 @@ static int ftp_build_list_entry(struct FtpSession* session, const struct Pathnam
         }
 
         struct tm tm = {0};
-        const struct tm* gtm = gmtime(&st->st_mtime);
-        if (gtm) {
-            tm = *gtm;
-        }
+        unpack_time(&st->st_mtime, &tm);
 
         // if the time is greater than 6 months, show year rather than time
         char date[6] = {0};
@@ -1269,11 +1280,11 @@ static void ftp_cmd_MDTM(struct FtpSession* session, const char* data) {
     int rc = ftp_get_stat(session, data, &fullpath, &st);
 
     if (!rc) {
-        const struct tm* gtm = gmtime(&st.st_mtime);
-        if (!gtm) {
+        struct tm tm = {0};
+        if (!unpack_time(&st.st_mtime, &tm)) {
             ftp_client_msg(session, 550, "Syntax error in parameters or arguments, %s. Failed to get timestamp: %s", strerror(errno), fullpath.s);
         } else {
-            ftp_client_msg(session, 213, "%04d%02d%02d%02d%02d", gtm->tm_year + 1900, gtm->tm_mon, gtm->tm_mday, gtm->tm_hour, gtm->tm_min, gtm->tm_sec);
+            ftp_client_msg(session, 213, "%04d%02d%02d%02d%02d", tm.tm_year + 1900, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
         }
     }
 }
