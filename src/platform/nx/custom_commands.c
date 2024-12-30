@@ -2,6 +2,7 @@
 #include "reboot_to_payload/reboot_to_payload.h"
 #include "rtc/max77620-rtc.h"
 #include "utils.h"
+#include "minIni.h"
 #include "ftpsrv_vfs.h"
 
 #include <switch.h>
