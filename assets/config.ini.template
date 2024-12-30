@@ -12,8 +12,8 @@
 anon = 0
 
 # if anon is disabled, then user and pass must be set.
-; user =
-; pass =
+user = ""
+pass = ""
 
 [Network]
 # port 21 is the default port for an ftp server, some platforms may not
@@ -46,11 +46,33 @@ save_writable = 0
 # WARNING: modifying bis files can soft brick your switch!
 mount_bis = 0
 
-# uncomment to override the port for application
-# app_port = 21
-
-# uncomment to override the port for sysmode
-# sys_port = 21
-
 # enables led on the controller to light flash
 led = 0
+
+# options specific to Nintendo Switch App
+[Nx-App]
+; anon = 0
+; user = ""
+; pass = ""
+; port = 21
+; timeout = 0
+; use_localtime = 0
+; log = 0
+; mount_devices = 0
+; save_writable = 0
+; mount_bis = 0
+; led = 0
+
+# options specific to Nintendo Switch Sysmodule
+[Nx-Sys]
+; anon = 0
+; user = ""
+; pass = ""
+; port = 21
+; timeout = 0
+; use_localtime = 0
+; log = 0
+; mount_devices = 0
+; save_writable = 0
+; mount_bis = 0
+; led = 0

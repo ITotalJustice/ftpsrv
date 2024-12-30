@@ -142,17 +142,32 @@ int main(int argc, char** argv) {
     g_ftpsrv_config.log_callback = ftp_log_callback;
     g_ftpsrv_config.progress_callback = ftp_progress_callback;
     g_ftpsrv_config.anon = ini_getbool("Login", "anon", 0, INI_PATH);
-    const int user_len = ini_gets("Login", "user", "", g_ftpsrv_config.user, sizeof(g_ftpsrv_config.user), INI_PATH);
-    const int pass_len = ini_gets("Login", "pass", "", g_ftpsrv_config.pass, sizeof(g_ftpsrv_config.pass), INI_PATH);
+    int user_len = ini_gets("Login", "user", "", g_ftpsrv_config.user, sizeof(g_ftpsrv_config.user), INI_PATH);
+    int pass_len = ini_gets("Login", "pass", "", g_ftpsrv_config.pass, sizeof(g_ftpsrv_config.pass), INI_PATH);
     g_ftpsrv_config.port = ini_getl("Network", "port", 21, INI_PATH);
     g_ftpsrv_config.timeout = ini_getl("Network", "timeout", 0, INI_PATH);
     g_ftpsrv_config.use_localtime = ini_getbool("Misc", "use_localtime", 0, INI_PATH);
-    const bool log_enabled = ini_getbool("Log", "log", 0, INI_PATH);
-    const bool mount_devices = ini_getbool("Nx", "mount_devices", 1, INI_PATH);
-    const bool mount_bis = ini_getbool("Nx", "mount_bis", 0, INI_PATH);
-    const bool save_writable = ini_getbool("Nx", "save_writable", 0, INI_PATH);
+    bool log_enabled = ini_getbool("Log", "log", 0, INI_PATH);
+
+    // get nx config
+    bool mount_devices = ini_getbool("Nx", "mount_devices", 1, INI_PATH);
+    bool mount_bis = ini_getbool("Nx", "mount_bis", 0, INI_PATH);
+    bool save_writable = ini_getbool("Nx", "save_writable", 0, INI_PATH);
     g_led_enabled = ini_getbool("Nx", "led", 1, INI_PATH);
-    g_ftpsrv_config.port = ini_getl("Nx", "app_port", g_ftpsrv_config.port, INI_PATH);
+    g_ftpsrv_config.port = ini_getl("Nx", "app_port", g_ftpsrv_config.port, INI_PATH); // compat
+
+    // get Nx-App overrides
+    g_ftpsrv_config.anon = ini_getbool("Nx-App", "anon", g_ftpsrv_config.anon, INI_PATH);
+    user_len = ini_gets("Nx-App", "user", g_ftpsrv_config.user, g_ftpsrv_config.user, sizeof(g_ftpsrv_config.user), INI_PATH);
+    pass_len = ini_gets("Nx-App", "pass", g_ftpsrv_config.pass, g_ftpsrv_config.pass, sizeof(g_ftpsrv_config.pass), INI_PATH);
+    g_ftpsrv_config.port = ini_getl("Nx-App", "port", g_ftpsrv_config.port, INI_PATH);
+    g_ftpsrv_config.timeout = ini_getl("Nx-App", "timeout", g_ftpsrv_config.timeout, INI_PATH);
+    g_ftpsrv_config.use_localtime = ini_getbool("Nx-App", "use_localtime", g_ftpsrv_config.use_localtime, INI_PATH);
+    log_enabled = ini_getbool("Nx-App", "log", log_enabled, INI_PATH);
+    mount_devices = ini_getbool("Nx-App", "mount_devices", mount_devices, INI_PATH);
+    mount_bis = ini_getbool("Nx-App", "mount_bis", mount_bis, INI_PATH);
+    save_writable = ini_getbool("Nx-App", "save_writable", save_writable, INI_PATH);
+    g_led_enabled = ini_getbool("Nx-App", "led", g_led_enabled, INI_PATH);
 
     if (log_enabled) {
         log_file_init(LOG_PATH, "ftpsrv - " FTPSRV_VERSION_HASH " - NX-app");
