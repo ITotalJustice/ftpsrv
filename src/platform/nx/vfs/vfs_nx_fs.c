@@ -318,31 +318,6 @@ int vfs_fs_set_errno(Result rc) {
     return -1;
 }
 
-// from libnx fs_dev.c
-static time_t fsdev_converttimetoutc(u64 timestamp)
-{
-  // Parse timestamp into y/m/d h:m:s
-  time_t posixtime = (time_t)timestamp;
-  struct tm tm = {0};
-  if (localtime_r(&posixtime, &tm)) {
-    // Convert time/date into an actual UTC POSIX timestamp using the system's timezone rules
-    TimeCalendarTime caltime;
-    caltime.year   = 1900 + tm.tm_year;
-    caltime.month  = 1 + tm.tm_mon;
-    caltime.day    = tm.tm_mday;
-    caltime.hour   = tm.tm_hour;
-    caltime.minute = tm.tm_min;
-    caltime.second = tm.tm_sec;
-    u64 new_timestamp;
-    Result rc = timeToPosixTimeWithMyRule(&caltime, &new_timestamp, 1, NULL);
-    if (R_SUCCEEDED(rc)) {
-        posixtime = (time_t)new_timestamp;
-    }
-  }
-
-  return posixtime;
-}
-
 #if VFS_NX_BUFFER_IO
 static Result flush_buffered_write(struct VfsFsFile* f) {
     Result rc;
@@ -368,9 +343,9 @@ static int fstat_internal(FsFileSystem* fs, FsFile* file, const char nxpath[stat
     FsTimeStampRaw timestamp;
     if (R_SUCCEEDED(fsFsGetFileTimeStampRaw(fs, nxpath, &timestamp))) {
         if (timestamp.is_valid) {
-            st->st_ctime = fsdev_converttimetoutc(timestamp.created);
-            st->st_mtime = fsdev_converttimetoutc(timestamp.modified);
-            st->st_atime = fsdev_converttimetoutc(timestamp.accessed);
+            st->st_ctime = timestamp.created;
+            st->st_mtime = timestamp.modified;
+            st->st_atime = timestamp.accessed;
         }
     }
 
@@ -563,9 +538,9 @@ int vfs_fs_internal_dirlstat(FsFileSystem* fs, struct VfsFsDir* f, const struct 
         FsTimeStampRaw timestamp;
         if (R_SUCCEEDED(fsFsGetFileTimeStampRaw(fs, nxpath, &timestamp))) {
             if (timestamp.is_valid) {
-                st->st_ctime = fsdev_converttimetoutc(timestamp.created);
-                st->st_mtime = fsdev_converttimetoutc(timestamp.modified);
-                st->st_atime = fsdev_converttimetoutc(timestamp.accessed);
+                st->st_ctime = timestamp.created;
+                st->st_mtime = timestamp.modified;
+                st->st_atime = timestamp.accessed;
             }
         }
     } else {
