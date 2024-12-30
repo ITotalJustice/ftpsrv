@@ -44,6 +44,8 @@ struct FtpSrvConfig {
     bool read_only;
     // if set, an account is required for storing files.
     bool write_account_required;
+    // if set, it will use localtime over gmtime.
+    bool use_localtime;
     // if set, sessions will be closed once this is elapsed.
     unsigned timeout;
 

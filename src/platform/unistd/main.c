@@ -26,6 +26,7 @@ enum ArgsId {
     ArgsId_pass,
     ArgsId_anon,
     ArgsId_timeout,
+    ArgsId_localtime
 };
 
 #define ARGS_ENTRY(_key, _type, _single) \
@@ -39,6 +40,7 @@ static const struct ArgsMeta ARGS_META[] = {
     ARGS_ENTRY(pass, ArgsValueType_STR, 'p')
     ARGS_ENTRY(anon, ArgsValueType_BOOL, 'a')
     ARGS_ENTRY(timeout, ArgsValueType_INT, 't')
+    ARGS_ENTRY(localtime, ArgsValueType_BOOL, 0)
 };
 
 static void ftp_log_callback(enum FTP_API_LOG_TYPE type, const char* msg) {
@@ -66,6 +68,7 @@ Usage\n\n\
     -p, --pass      = Set password.\n\
     -a, --anon      = Enable anonymous login.\n\
     -t, --timeout   = Set session timeout in seconds.\n\
+    --localtime     = Use local time over gm time.\n\
     \n");
 
     return code;
@@ -94,10 +97,13 @@ int main(int argc, char** argv) {
                 snprintf(ftpsrv_config.pass, sizeof(ftpsrv_config.pass), arg_data.value.s);
                 break;
             case ArgsId_anon:
-                ftpsrv_config.anon = true;
+                ftpsrv_config.anon = arg_data.value.b;
                 break;
             case ArgsId_timeout:
                 ftpsrv_config.timeout = arg_data.value.i;
+                break;
+            case ArgsId_localtime:
+                ftpsrv_config.use_localtime = arg_data.value.b;
                 break;
         }
     }
@@ -141,6 +147,7 @@ int main(int argc, char** argv) {
         printf(TEXT_YELLOW "pass: %s" TEXT_NORMAL "\n", ftpsrv_config.pass);
     }
     printf(TEXT_YELLOW "timeout: %us" TEXT_NORMAL "\n", ftpsrv_config.timeout);
+    printf(TEXT_YELLOW "use_locatime: %us" TEXT_NORMAL "\n", ftpsrv_config.use_localtime);
 
     int timeout = -1;
     if (ftpsrv_config.timeout) {

@@ -37,6 +37,7 @@ int main(void) {
     const int pass_len = ini_gets("Login", "pass", "", g_ftpsrv_config.pass, sizeof(g_ftpsrv_config.pass), INI_PATH);
     g_ftpsrv_config.port = ini_getl("Network", "port", 21, INI_PATH);
     g_ftpsrv_config.timeout = ini_getl("Network", "timeout", 0, INI_PATH);
+    g_ftpsrv_config.use_localtime = ini_getbool("Misc", "use_localtime", 0, INI_PATH);
     const bool log_enabled = ini_getbool("Log", "log", 0, INI_PATH);
     const bool mount_devices = ini_getbool("Nx", "mount_devices", 1, INI_PATH);
     const bool mount_bis = ini_getbool("Nx", "mount_bis", 0, INI_PATH);

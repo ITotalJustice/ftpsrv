@@ -85,8 +85,8 @@ HAVE_LOCALTIME_R)
 
 check_c_source_compiles("
     #include <time.h>
-    int main(void) { localtime_s(0, 0); }"
-HAVE_LOCALTIME_S)
+    int main(void) { gmtime_r(0, 0); }"
+HAVE_GMTIME_R)
 
 find_package(Git REQUIRED)
 
@@ -138,7 +138,7 @@ function(ftp_set_compile_definitions target)
             HAVE_GETGRGID=$<BOOL:${HAVE_GETGRGID}>
             HAVE_STRNCASECMP=$<BOOL:${HAVE_STRNCASECMP}>
             HAVE_LOCALTIME_R=$<BOOL:${HAVE_LOCALTIME_R}>
-            HAVE_LOCALTIME_S=$<BOOL:${HAVE_LOCALTIME_S}>
+            HAVE_GMTIME_R=$<BOOL:${HAVE_GMTIME_R}>
             HAVE_POLL=$<BOOL:${HAVE_POLL}>
             HAVE_IPTOS_THROUGHPUT=$<BOOL:${HAVE_IPTOS_THROUGHPUT}>
             HAVE_TCP_NODELAY=$<BOOL:${HAVE_TCP_NODELAY}>

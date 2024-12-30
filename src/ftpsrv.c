@@ -196,17 +196,27 @@ static int strncasecmp(const char* a, const char* b, size_t len) {
 #endif
 
 static struct tm* unpack_time(const time_t* timer, struct tm* buf) {
-#if HAVE_LOCALTIME_R
-    return localtime_r(timer, buf);
-#elif HAVE_LOCALTIME_S
-    return localtime_s(timer, buf);
+    struct tm* r;
+
+    if (g_ftp.cfg.use_localtime) {
+#if defined(HAVE_LOCALTIME_R) && HAVE_LOCALTIME_R
+        r = localtime_r(timer, buf);
 #else
-    struct tm* r = localtime(timer);
+        r = localtime(timer);
+#endif
+    } else {
+#if defined(HAVE_GMTIME_R) && HAVE_GMTIME_R
+        r = gmtime_r(timer, buf);
+#else
+        r = gmtime(timer);
+#endif
+    }
+
     if (r) {
         *buf = *r;
     }
+
     return r;
-#endif
 }
 
 static size_t ftp_get_timestamp_ms(void) {
