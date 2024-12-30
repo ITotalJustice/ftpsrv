@@ -14,10 +14,17 @@ extern "C" {
 #include "vfs/vfs_nx_none.h"
 #include "vfs/vfs_nx_root.h"
 #include "vfs/vfs_nx_fs.h"
+
+#if USE_VFS_SAVE
 #include "vfs/vfs_nx_save.h"
+#endif
+#if USE_VFS_STORAGE
 #include "vfs/vfs_nx_storage.h"
+#endif
+#if USE_VFS_GC
 #include "vfs/vfs_nx_gc.h"
-#if USE_USBHSFS
+#endif
+#if USE_VFS_USBHSFS
 #include "vfs/vfs_nx_stdio.h"
 #include "vfs/vfs_nx_hdd.h"
 #endif
@@ -26,10 +33,16 @@ enum VFS_TYPE {
     VFS_TYPE_NONE,
     VFS_TYPE_ROOT, // list root devices
     VFS_TYPE_FS, // list native fs devices
+#if USE_VFS_SAVE
     VFS_TYPE_SAVE, // list saves, uses fs
+#endif
+#if USE_VFS_STORAGE
     VFS_TYPE_STORAGE, // list read-only bis storage
+#endif
+#if USE_VFS_GC
     VFS_TYPE_GC, // list cert and secure partition
-#if USE_USBHSFS
+#endif
+#if USE_VFS_USBHSFS
     VFS_TYPE_STDIO, // used for romfs and hdd
     VFS_TYPE_HDD, // list hdd, uses unistd
 #endif
@@ -40,10 +53,16 @@ struct FtpVfsFile {
     union {
         struct VfsRootFile root;
         struct VfsFsFile fs;
+#if USE_VFS_SAVE
         struct VfsSaveFile save;
+#endif
+#if USE_VFS_STORAGE
         struct VfsStorageFile storage;
+#endif
+#if USE_VFS_GC
         struct VfsGcFile gc;
-#if USE_USBHSFS
+#endif
+#if USE_VFS_USBHSFS
         struct VfsStdioFile stdio;
         struct VfsHddFile usbhsfs;
 #endif
@@ -55,10 +74,16 @@ struct FtpVfsDir {
     union {
         struct VfsRootDir root;
         struct VfsFsDir fs;
+#if USE_VFS_SAVE
         struct VfsSaveDir save;
+#endif
+#if USE_VFS_STORAGE
         struct VfsStorageDir storage;
+#endif
+#if USE_VFS_GC
         struct VfsGcDir gc;
-#if USE_USBHSFS
+#endif
+#if USE_VFS_USBHSFS
         struct VfsStdioDir stdio;
         struct VfsHddDir usbhsfs;
 #endif
@@ -70,10 +95,16 @@ struct FtpVfsDirEntry {
     union {
         struct VfsRootDirEntry root;
         struct VfsFsDirEntry fs;
+#if USE_VFS_SAVE
         struct VfsSaveDirEntry save;
+#endif
+#if USE_VFS_STORAGE
         struct VfsStorageDirEntry storage;
+#endif
+#if USE_VFS_GC
         struct VfsGcDirEntry gc;
-#if USE_USBHSFS
+#endif
+#if USE_VFS_USBHSFS
         struct VfsStdioDirEntry stdio;
         struct VfsHddDirEntry usbhsfs;
 #endif

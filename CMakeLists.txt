@@ -216,64 +216,34 @@ if (FTPSRV_LIB_BUILD)
     )
 else()
     if (NINTENDO_SWITCH)
+        if (NOT DEFINED USE_VFS_SAVE)
+            set(USE_VFS_SAVE TRUE)
+        endif()
+        if (NOT DEFINED USE_VFS_STORAGE)
+            set(USE_VFS_STORAGE TRUE)
+        endif()
+        if (NOT DEFINED USE_VFS_GC)
+            set(USE_VFS_GC TRUE)
+        endif()
+        if (NOT DEFINED USE_VFS_USBHSFS)
+            set(USE_VFS_USBHSFS TRUE)
+        endif()
+
         ftp_set_options(ftpsrv 769 128 1024*64)
         fetch_minini()
 
-        set(USBHSFS_GPL ON)
-        FetchContent_Declare(libusbhsfs
-            GIT_REPOSITORY https://github.com/DarkMatterCore/libusbhsfs.git
-            GIT_TAG v0.2.9
+        set(NX_SRC
+            src/platform/nx/vfs_nx.c
+            src/platform/nx/vfs/vfs_nx_none.c
+            src/platform/nx/vfs/vfs_nx_root.c
+            src/platform/nx/vfs/vfs_nx_fs.c
+            src/platform/nx/reboot_to_payload/ams_bpc.c
+            src/platform/nx/reboot_to_payload/reboot_to_payload.c
+            src/platform/nx/rtc/max77620-rtc.c
+            src/platform/nx/custom_commands.c
+            src/platform/nx/utils.c
+            src/log/log.c
         )
-
-        FetchContent_MakeAvailable(libusbhsfs)
-        add_library(libusbhsfs
-            ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_drive.c
-            ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_log.c
-            ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_manager.c
-            ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_mount.c
-            ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_request.c
-            ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_scsi.c
-            ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_utils.c
-        )
-
-        target_include_directories(libusbhsfs PUBLIC ${libusbhsfs_SOURCE_DIR}/include)
-
-        # fatfs stuff
-        target_sources(libusbhsfs PRIVATE
-            ${libusbhsfs_SOURCE_DIR}/source/fatfs/diskio.c
-            ${libusbhsfs_SOURCE_DIR}/source/fatfs/ff_dev.c
-            ${libusbhsfs_SOURCE_DIR}/source/fatfs/ff.c
-            ${libusbhsfs_SOURCE_DIR}/source/fatfs/ffsystem.c
-            ${libusbhsfs_SOURCE_DIR}/source/fatfs/ffunicode.c
-        )
-
-        # sxos stuff
-        target_sources(libusbhsfs PRIVATE
-            ${libusbhsfs_SOURCE_DIR}/source/sxos/usbfs_dev.c
-            ${libusbhsfs_SOURCE_DIR}/source/sxos/usbfs.c
-        )
-
-        if (USBHSFS_GPL)
-            target_sources(libusbhsfs PRIVATE
-                ${libusbhsfs_SOURCE_DIR}/source/lwext4/ext_dev.c
-                ${libusbhsfs_SOURCE_DIR}/source/lwext4/ext_disk_io.c
-                ${libusbhsfs_SOURCE_DIR}/source/lwext4/ext.c
-
-                ${libusbhsfs_SOURCE_DIR}/source/ntfs-3g/ntfs_dev.c
-                ${libusbhsfs_SOURCE_DIR}/source/ntfs-3g/ntfs_disk_io.c
-                ${libusbhsfs_SOURCE_DIR}/source/ntfs-3g/ntfs.c
-            )
-
-            find_library(ntfs_3g_lib ntfs-3g REQUIRED)
-            find_path(ntfs_3g_inc ntfs-3g REQUIRED)
-
-            find_library(lwext4_lib lwext4 REQUIRED)
-            find_path(lwext4_inc ext4.h REQUIRED)
-
-            target_link_libraries(libusbhsfs PRIVATE ${ntfs_3g_lib} ${lwext4_lib})
-            target_include_directories(libusbhsfs PRIVATE ${ntfs_3g_inc} ${lwext4_inc})
-            target_compile_definitions(libusbhsfs PRIVATE GPL_BUILD)
-        endif()
 
         target_compile_definitions(ftpsrv PUBLIC
             FTP_VFS_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/nx/vfs_nx.h"
@@ -281,31 +251,95 @@ else()
             VFS_NX_BUFFER_WRITES=1
         )
 
-        set(NX_SRC
-            src/platform/nx/vfs_nx.c
-            src/platform/nx/vfs/vfs_nx_none.c
-            src/platform/nx/vfs/vfs_nx_root.c
-            src/platform/nx/vfs/vfs_nx_fs.c
-            src/platform/nx/vfs/vfs_nx_save.c
-            src/platform/nx/vfs/vfs_nx_storage.c
-            src/platform/nx/vfs/vfs_nx_gc.c
-            src/platform/nx/utils.c
-            src/platform/nx/reboot_to_payload/ams_bpc.c
-            src/platform/nx/reboot_to_payload/reboot_to_payload.c
-            src/platform/nx/rtc/max77620-rtc.c
-            src/platform/nx/custom_commands.c
-            src/log/log.c
-        )
+        if (USE_VFS_SAVE)
+            list(APPEND NX_SRC src/platform/nx/vfs/vfs_nx_save.c)
+        endif()
+        if (USE_VFS_STORAGE)
+            list(APPEND NX_SRC src/platform/nx/vfs/vfs_nx_storage.c)
+        endif()
+        if (USE_VFS_GC)
+            list(APPEND NX_SRC src/platform/nx/vfs/vfs_nx_gc.c)
+        endif()
 
         add_executable(ftpexe
             src/platform/nx/main.c
-            src/platform/nx/vfs/vfs_nx_stdio.c
-            src/platform/nx/vfs/vfs_nx_hdd.c
             ${NX_SRC}
         )
-        target_compile_definitions(ftpexe PUBLIC USE_USBHSFS=1)
+
+        target_compile_definitions(ftpexe PUBLIC
+            USE_VFS_SAVE=$<BOOL:${USE_VFS_SAVE}>
+            USE_VFS_STORAGE=$<BOOL:${USE_VFS_STORAGE}>
+            USE_VFS_GC=$<BOOL:${USE_VFS_GC}>
+            USE_VFS_USBHSFS=$<BOOL:${USE_VFS_USBHSFS}>
+        )
+
+        if (USE_VFS_USBHSFS)
+            set(USBHSFS_GPL ON)
+            FetchContent_Declare(libusbhsfs
+                GIT_REPOSITORY https://github.com/DarkMatterCore/libusbhsfs.git
+                GIT_TAG v0.2.9
+            )
+
+            FetchContent_MakeAvailable(libusbhsfs)
+            add_library(libusbhsfs
+                ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_drive.c
+                ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_log.c
+                ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_manager.c
+                ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_mount.c
+                ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_request.c
+                ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_scsi.c
+                ${libusbhsfs_SOURCE_DIR}/source/usbhsfs_utils.c
+            )
+
+            target_include_directories(libusbhsfs PUBLIC ${libusbhsfs_SOURCE_DIR}/include)
+
+            # fatfs stuff
+            target_sources(libusbhsfs PRIVATE
+                ${libusbhsfs_SOURCE_DIR}/source/fatfs/diskio.c
+                ${libusbhsfs_SOURCE_DIR}/source/fatfs/ff_dev.c
+                ${libusbhsfs_SOURCE_DIR}/source/fatfs/ff.c
+                ${libusbhsfs_SOURCE_DIR}/source/fatfs/ffsystem.c
+                ${libusbhsfs_SOURCE_DIR}/source/fatfs/ffunicode.c
+            )
+
+            # sxos stuff
+            target_sources(libusbhsfs PRIVATE
+                ${libusbhsfs_SOURCE_DIR}/source/sxos/usbfs_dev.c
+                ${libusbhsfs_SOURCE_DIR}/source/sxos/usbfs.c
+            )
+
+            if (USBHSFS_GPL)
+                target_sources(libusbhsfs PRIVATE
+                    ${libusbhsfs_SOURCE_DIR}/source/lwext4/ext_dev.c
+                    ${libusbhsfs_SOURCE_DIR}/source/lwext4/ext_disk_io.c
+                    ${libusbhsfs_SOURCE_DIR}/source/lwext4/ext.c
+
+                    ${libusbhsfs_SOURCE_DIR}/source/ntfs-3g/ntfs_dev.c
+                    ${libusbhsfs_SOURCE_DIR}/source/ntfs-3g/ntfs_disk_io.c
+                    ${libusbhsfs_SOURCE_DIR}/source/ntfs-3g/ntfs.c
+                )
+
+                find_library(ntfs_3g_lib ntfs-3g REQUIRED)
+                find_path(ntfs_3g_inc ntfs-3g REQUIRED)
+
+                find_library(lwext4_lib lwext4 REQUIRED)
+                find_path(lwext4_inc ext4.h REQUIRED)
+
+                target_link_libraries(libusbhsfs PRIVATE ${ntfs_3g_lib} ${lwext4_lib})
+                target_include_directories(libusbhsfs PRIVATE ${ntfs_3g_inc} ${lwext4_inc})
+                target_compile_definitions(libusbhsfs PRIVATE GPL_BUILD)
+            endif()
+
+            target_link_libraries(ftpexe PRIVATE libusbhsfs)
+
+            target_sources(ftpexe PRIVATE
+                src/platform/nx/vfs/vfs_nx_stdio.c
+                src/platform/nx/vfs/vfs_nx_hdd.c
+            )
+        endif()
+
         ftp_add(ftpexe)
-        target_link_libraries(ftpexe PRIVATE ftpsrv minIni libusbhsfs)
+        target_link_libraries(ftpexe PRIVATE ftpsrv minIni)
 
         nx_generate_nacp(
             OUTPUT ftpexe.nacp
@@ -336,6 +370,12 @@ else()
         )
         ftp_add(sysftp)
         target_link_libraries(sysftp PRIVATE ftpsrv_sysmod minIni)
+
+        target_compile_definitions(ftpexe PUBLIC
+            USE_VFS_SAVE=$<BOOL:${USE_VFS_SAVE}>
+            USE_VFS_STORAGE=$<BOOL:${USE_VFS_STORAGE}>
+            USE_VFS_GC=$<BOOL:${USE_VFS_GC}>
+        )
 
         file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/420000000000011B)
         file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/420000000000011B/flags)

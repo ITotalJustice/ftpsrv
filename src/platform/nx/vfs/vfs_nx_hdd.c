@@ -4,6 +4,7 @@
  */
 
 #include "ftpsrv_vfs.h"
+#include "vfs_nx_hdd.h"
 #include "log/log.h"
 #include <errno.h>
 #include <sys/stat.h>

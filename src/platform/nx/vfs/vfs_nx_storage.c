@@ -1,4 +1,5 @@
 #include "ftpsrv_vfs.h"
+#include "vfs_nx_storage.h"
 #include "log/log.h"
 #include <errno.h>
 #include <string.h>

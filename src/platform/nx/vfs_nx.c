@@ -26,10 +26,16 @@ static const FtpVfs* g_vfs[] = {
     [VFS_TYPE_NONE] = &g_vfs_none,
     [VFS_TYPE_ROOT] = &g_vfs_root,
     [VFS_TYPE_FS] = &g_vfs_fs,
+#if USE_VFS_SAVE
     [VFS_TYPE_SAVE] = &g_vfs_save,
+#endif
+#if USE_VFS_STORAGE
     [VFS_TYPE_STORAGE] = &g_vfs_storage,
+#endif
+#if USE_VFS_GC
     [VFS_TYPE_GC] = &g_vfs_gc,
-#if USE_USBHSFS
+#endif
+#if USE_VFS_USBHSFS
     [VFS_TYPE_STDIO] = &g_vfs_stdio,
     [VFS_TYPE_HDD] = &g_vfs_hdd,
 #endif
@@ -299,8 +305,10 @@ void vfs_nx_init(bool enable_devices, bool save_writable, bool mount_bis) {
         }
 
         // bis storage
+#if USE_VFS_STORAGE
         vfs_storage_init();
         vfs_nx_add_device("bis", VFS_TYPE_STORAGE);
+#endif
 
         // bis fs
         if (mount_bis) {
@@ -351,13 +359,18 @@ void vfs_nx_init(bool enable_devices, bool save_writable, bool mount_bis) {
             }
         }
 
+#if USE_VFS_GC
         if (R_SUCCEEDED(vfs_gc_init())) {
             vfs_nx_add_device("gc", VFS_TYPE_GC);
         }
+#endif
 
+#if USE_VFS_SAVE
         vfs_save_init(save_writable);
         vfs_nx_add_device("save", VFS_TYPE_SAVE);
-#if USE_USBHSFS
+#endif
+
+#if USE_VFS_USBHSFS
         if (R_SUCCEEDED(romfsMountFromCurrentProcess("romfs"))) {
             vfs_nx_add_device("romfs", VFS_TYPE_STDIO);
         }
@@ -388,11 +401,17 @@ void vfs_nx_init(bool enable_devices, bool save_writable, bool mount_bis) {
 
 void vfs_nx_exit(void) {
     if (g_enabled_devices) {
+#if USE_VFS_GC
         vfs_gc_exit();
+#endif
+#if USE_VFS_STORAGE
         vfs_storage_exit();
+#endif
+#if USE_VFS_SAVE
         vfs_save_exit();
+#endif
         vfs_root_exit();
-#if USE_USBHSFS
+#if USE_VFS_USBHSFS
         romfsUnmount("romfs_qlaunch");
         romfsUnmount("romfs");
         vfs_hdd_exit();
