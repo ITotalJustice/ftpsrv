@@ -199,7 +199,7 @@ int main(int argc, char** argv) {
     }
     printf("\n");
     printf(TEXT_YELLOW "timeout: %us" TEXT_NORMAL "\n", g_ftpsrv_config.timeout);
-    printf(TEXT_YELLOW "use_locatime: %us" TEXT_NORMAL "\n", g_ftpsrv_config.use_localtime);
+    printf(TEXT_YELLOW "use_localtime: %u" TEXT_NORMAL "\n", g_ftpsrv_config.use_localtime);
     printf(TEXT_YELLOW "log: %d" TEXT_NORMAL "\n", log_enabled);
     printf(TEXT_YELLOW "mount_devices: %d" TEXT_NORMAL "\n", mount_devices);
     printf(TEXT_YELLOW "save_writable: %d" TEXT_NORMAL "\n", save_writable);

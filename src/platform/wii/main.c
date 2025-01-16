@@ -57,13 +57,13 @@ static void processEvents(void) {
 
             switch (g_callback_data[i].type) {
                 case FTP_API_LOG_TYPE_COMMAND:
-                    iprintf(TEXT_BLUE "Command:  %s" TEXT_NORMAL "\n", g_callback_data[i].msg);
+                    printf(TEXT_BLUE "Command:  %s" TEXT_NORMAL "\n", g_callback_data[i].msg);
                     break;
                 case FTP_API_LOG_TYPE_RESPONSE:
-                    iprintf(TEXT_GREEN "Response: %s" TEXT_NORMAL "\n", g_callback_data[i].msg);
+                    printf(TEXT_GREEN "Response: %s" TEXT_NORMAL "\n", g_callback_data[i].msg);
                     break;
                 case FTP_API_LOG_TYPE_ERROR:
-                    iprintf(TEXT_RED "Error:    %s" TEXT_NORMAL "\n", g_callback_data[i].msg);
+                    printf(TEXT_RED "Error:    %s" TEXT_NORMAL "\n", g_callback_data[i].msg);
                     break;
             }
         }
@@ -106,9 +106,9 @@ static void consolePrint(const char* fmt, ...) {
 
 static int error_loop(const char* msg) {
     log_file_write(msg);
-    iprintf("Error: %s\n\n", msg);
-    iprintf("Modify the config at: %s\n\n", INI_PATH);
-    iprintf("\tPress (+) to exit...\n");
+    printf("Error: %s\n\n", msg);
+    printf("Modify the config at: %s\n\n", INI_PATH);
+    printf("\tPress (+) to exit...\n");
 
     while (1) {
         WPAD_ScanPads();
@@ -142,7 +142,7 @@ int main(void) {
 	// Allocate memory for the display in the uncached region
 	xfb = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
 
-	// Initialise the console, required for iprintf
+	// Initialise the console, required for printf
 	console_init(xfb,20,20,rmode->fbWidth,rmode->xfbHeight,rmode->fbWidth*VI_DISPLAY_PIX_SZ);
 
 	// Set up the video registers with the chosen mode
@@ -207,19 +207,19 @@ int main(void) {
     while (1) {
         if (!has_net && net_get_status() >= 0) {
             const struct in_addr addr = {net_gethostip()};
-            iprintf(TEXT_YELLOW "ip: %s\n", inet_ntoa(addr));
-            iprintf(TEXT_YELLOW "port: %d" TEXT_NORMAL "\n", g_ftpsrv_config.port);
+            printf(TEXT_YELLOW "ip: %s\n", inet_ntoa(addr));
+            printf(TEXT_YELLOW "port: %d" TEXT_NORMAL "\n", g_ftpsrv_config.port);
             if (g_ftpsrv_config.anon) {
-                iprintf(TEXT_YELLOW "anon: %d" TEXT_NORMAL "\n", 1);
+                printf(TEXT_YELLOW "anon: %d" TEXT_NORMAL "\n", 1);
             } else {
-                iprintf(TEXT_YELLOW "user: %s" TEXT_NORMAL "\n", g_ftpsrv_config.user);
-                iprintf(TEXT_YELLOW "pass: %s" TEXT_NORMAL "\n", g_ftpsrv_config.pass);
+                printf(TEXT_YELLOW "user: %s" TEXT_NORMAL "\n", g_ftpsrv_config.user);
+                printf(TEXT_YELLOW "pass: %s" TEXT_NORMAL "\n", g_ftpsrv_config.pass);
             }
-            iprintf(TEXT_YELLOW "log: %d" TEXT_NORMAL "\n", log_enabled);
-            iprintf(TEXT_YELLOW "timeout: %us" TEXT_NORMAL "\n", g_ftpsrv_config.timeout);
-            iprintf(TEXT_YELLOW "use_locatime: %us" TEXT_NORMAL "\n", g_ftpsrv_config.use_localtime);
-            iprintf(TEXT_YELLOW "\nconfig: %s" TEXT_NORMAL "\n", INI_PATH);
-            iprintf("\n");
+            printf(TEXT_YELLOW "log: %d" TEXT_NORMAL "\n", log_enabled);
+            printf(TEXT_YELLOW "timeout: %us" TEXT_NORMAL "\n", g_ftpsrv_config.timeout);
+            printf(TEXT_YELLOW "use_localtime: %u" TEXT_NORMAL "\n", g_ftpsrv_config.use_localtime);
+            printf(TEXT_YELLOW "\nconfig: %s" TEXT_NORMAL "\n", INI_PATH);
+            printf("\n");
             has_net = true;
         }
 

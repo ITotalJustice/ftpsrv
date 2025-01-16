@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.13)
 
 set(FTPSRV_VERSION_MAJOR 1)
 set(FTPSRV_VERSION_MINOR 2)
-set(FTPSRV_VERSION_PATCH 1)
+set(FTPSRV_VERSION_PATCH 2)
 set(FTPSRV_VERSION ${FTPSRV_VERSION_MAJOR}.${FTPSRV_VERSION_MINOR}.${FTPSRV_VERSION_PATCH})
 
 project(ftpsrv
@@ -120,7 +120,7 @@ endif()
 function(fetch_minini)
     FetchContent_Declare(minIni
         GIT_REPOSITORY https://github.com/ITotalJustice/minIni-nx.git
-        GIT_TAG 63ec295
+        GIT_TAG 11cac8b
     )
 
     set(MININI_USE_NX ${NINTENDO_SWITCH})
@@ -449,7 +449,8 @@ else()
             SMDH ${PROJECT_NAME}.smdh
         )
     elseif(NINTENDO_WII)
-        ftp_set_options(ftpsrv 769 10 1024*64)
+        # NOTE: 64k net_send/net_recv breaks with ogc2...
+        ftp_set_options(ftpsrv 769 10 1024*32)
         fetch_minini()
 
         target_compile_definitions(ftpsrv PUBLIC
@@ -466,6 +467,8 @@ else()
         ftp_add(ftpexe)
 
         file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/apps/ftpsrv)
+        configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/platform/wii/meta.xml ${CMAKE_CURRENT_BINARY_DIR}/apps/ftpsrv/meta.xml)
+
         ogc_create_dol(ftpexe)
 
         add_custom_command(
@@ -473,10 +476,6 @@ else()
             COMMAND ${CMAKE_COMMAND} -E copy
                 ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/wii/icon.png
                 ${CMAKE_CURRENT_BINARY_DIR}/apps/ftpsrv/icon.png
-
-            COMMAND ${CMAKE_COMMAND} -E copy
-                ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/wii/meta.xml
-                ${CMAKE_CURRENT_BINARY_DIR}/apps/ftpsrv/meta.xml
 
             COMMAND ${CMAKE_COMMAND} -E copy
                 ${CMAKE_CURRENT_BINARY_DIR}/ftpexe.dol

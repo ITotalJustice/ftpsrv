@@ -147,7 +147,7 @@ int main(int argc, char** argv) {
         printf(TEXT_YELLOW "pass: %s" TEXT_NORMAL "\n", ftpsrv_config.pass);
     }
     printf(TEXT_YELLOW "timeout: %us" TEXT_NORMAL "\n", ftpsrv_config.timeout);
-    printf(TEXT_YELLOW "use_locatime: %us" TEXT_NORMAL "\n", ftpsrv_config.use_localtime);
+    printf(TEXT_YELLOW "use_localtime: %u" TEXT_NORMAL "\n", ftpsrv_config.use_localtime);
 
     int timeout = -1;
     if (ftpsrv_config.timeout) {

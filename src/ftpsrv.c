@@ -1294,7 +1294,7 @@ static void ftp_cmd_MDTM(struct FtpSession* session, const char* data) {
         if (!unpack_time(&st.st_mtime, &tm)) {
             ftp_client_msg(session, 550, "Syntax error in parameters or arguments, %s. Failed to get timestamp: %s", strerror(errno), fullpath.s);
         } else {
-            ftp_client_msg(session, 213, "%04d%02d%02d%02d%02d", tm.tm_year + 1900, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+            ftp_client_msg(session, 213, "%04d%02d%02d%02d%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
         }
     }
 }
