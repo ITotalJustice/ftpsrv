@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# Get the current version number
+VERSION=$(cat version.txt)
+
 # builds a preset
 build_preset() {
     echo Configuring $1 ...
@@ -23,7 +26,7 @@ cp assets/config.ini.template out/nds/config/ftpsrv/
 mkdir -p out/nds
 cp build/nds/*.nds out/nds/ftpsrv.nds
 cd out/nds
-zip -r9 ../nds.zip ftpsrv.nds config
+zip -r9 ../nds_v${VERSION}.zip ftpsrv.nds config
 cd ../..
 
 # --- 3DS --- #
@@ -33,7 +36,7 @@ cp assets/config.ini.template out/3ds/config/ftpsrv/
 mkdir -p out/3ds
 cp build/3ds/*.3dsx out/3ds/ftpsrv.3dsx
 cd out/3ds
-zip -r9 ../3ds.zip ftpsrv.3dsx config
+zip -r9 ../3ds_v${VERSION}.zip ftpsrv.3dsx config
 cd ../..
 
 # --- WII --- #
@@ -43,7 +46,7 @@ cp assets/config.ini.template out/wii/config/ftpsrv/
 mkdir -p out/wii
 cp -r build/wii/apps out/wii/
 cd out/wii
-zip -r9 ../wii.zip apps config
+zip -r9 ../wii_v${VERSION}.zip apps config
 cd ../..
 
 # --- SWITCH --- #
@@ -54,11 +57,11 @@ mkdir -p out/switch/switch
 cp assets/config.ini.template out/switch/config/ftpsrv/
 cp -r build/switch/*.nro out/switch/switch/ftpsrv.nro
 cd out/switch
-zip -r9 ../switch_application.zip switch config
+zip -r9 ../switch_application_v${VERSION}.zip switch config
 cd ../..
 
 mkdir -p out/switch/atmosphere/contents/
 cp -r build/switch/420000000000011B out/switch/atmosphere/contents/
 cd out/switch
-zip -r9 ../switch_sysmod.zip atmosphere config
+zip -r9 ../switch_sysmod_v${VERSION}.zip atmosphere config
 cd ../..
