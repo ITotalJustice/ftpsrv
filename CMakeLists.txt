@@ -481,6 +481,24 @@ else()
                 ${CMAKE_CURRENT_BINARY_DIR}/ftpexe.dol
                 ${CMAKE_CURRENT_BINARY_DIR}/apps/ftpsrv/boot.dol
         )
+    elseif(PS4)
+        target_compile_definitions(ftpsrv PRIVATE FTP_SOCKET_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/socket_unistd.h")
+
+        target_sources(ftpsrv PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/vfs_unistd.c")
+        target_compile_definitions(ftpsrv PRIVATE FTP_VFS_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/src/platform/unistd/vfs_unistd.h")
+
+        add_custom_command(TARGET ftpsrv POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E make_directory "data/sce_sys"
+        )
+
+        add_executable(ftpexe
+            src/platform/ps4/main.c
+        )
+        target_link_libraries(ftpexe PRIVATE ftpsrv)
+        ftp_add(ftpexe)
+
+        add_self(ftpexe)
+        add_pkg(ftpexe "data" "FTPS00001" "FTPSRV" "${PROJECT_VERSION}")
     else()
         target_compile_definitions(ftpsrv PRIVATE
             FTP_FILE_BUFFER_SIZE=1024*512

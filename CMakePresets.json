@@ -45,6 +45,15 @@
             "displayName": "switch",
             "inherits": [ "core" ],
             "toolchainFile": "$env{DEVKITPRO}/cmake/Switch.cmake"
+        },
+        {
+            "name": "ps4",
+            "displayName": "ps4",
+            "inherits": [ "core" ],
+            "toolchainFile": "$env{OO_PS4_TOOLCHAIN}/cmake/ps4.cmake",
+            "cacheVariables": {
+                "PS4": true
+            }
         }
     ],
     "buildPresets": [
@@ -76,6 +85,11 @@
         {
             "name": "switch",
             "configurePreset": "switch",
+            "jobs": 16
+        },
+        {
+            "name": "ps4",
+            "configurePreset": "ps4",
             "jobs": 16
         }
     ]

@@ -1,133 +1,232 @@
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <network.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <stddef.h>
 
-#undef HAVE_POLL
-#define HAVE_POLL 1
-
-struct pollfd {
-    s32 fd;
-    u32 events;
-    u32 revents;
+struct FtpSocketPollFd {
+    struct pollsd s;
 };
-typedef s32 nfds_t;
 
-#define SHUT_RDWR 2
+struct FtpSocket {
+    int s;
+};
 
-// the below wraps around the net_ functions and correctly
-// sets errno on error.
-static inline s32 socket_open(u32 domain,u32 type,u32 protocol) {
-    const int result = net_socket(domain, type, protocol);
-    if (result < 0) {
-        errno = -result;
+#ifndef SHUT_RDWR
+    #define SHUT_RDWR 2
+#endif
+
+static inline int ftp_socket_setsockopt_wii(int s, int level, int optname, const void* optval, size_t optlen) {
+    const int rc = net_setsockopt(s, level, optname, optval, optlen);
+    if (rc < 0) {
+        errno = -rc;
         return -1;
     }
-    return result;
+    return rc;
 }
 
-static inline s32 socket_recv(s32 s,void *mem,s32 size,u32 flags) {
-    const int result = net_recv(s, mem, size, flags);
-    if (result < 0) {
-        errno = -result;
+static inline int ftp_socket_fcntl_wii(int s, int cmd, int flags) {
+    const int rc = net_fcntl(s, cmd, flags);
+    if (rc < 0) {
+        errno = -rc;
         return -1;
     }
-    return result;
+    return rc;
 }
 
-static inline s32 socket_send(s32 s,const void *data,s32 size,u32 flags) {
-    const int result = net_send(s, data, size, flags);
-    if (result < 0) {
-        errno = -result;
+static inline int ftp_socket_open_wii(struct FtpSocket* sock, int domain, int type, int protocol) {
+    const int rc = sock->s = net_socket(domain, type, protocol);
+    if (rc < 0) {
+        errno = -rc;
         return -1;
     }
-    return result;
+    return rc;
 }
 
-static inline s32 socket_close(s32 s) {
-    const int result = net_close(s);
-    if (result < 0) {
-        errno = -result;
+static inline int ftp_socket_recv_wii(struct FtpSocket* sock, void* buf, size_t size, int flags) {
+    const int rc = net_recv(sock->s, buf, size, flags);
+    if (rc < 0) {
+        errno = -rc;
         return -1;
     }
-    return result;
+    return rc;
 }
 
-static inline s32 socket_shutdown(s32 s, u32 how) {
-    const int result = net_shutdown(s, how);
-    if (result < 0) {
-        errno = -result;
+static inline int ftp_socket_send_wii(struct FtpSocket* sock, const void* buf, size_t size, int flags) {
+    const int rc = net_send(sock->s, buf, size, flags);
+    if (rc < 0) {
+        errno = -rc;
         return -1;
     }
-    return result;
+    return rc;
 }
 
-static inline s32 socket_accept(s32 s,struct sockaddr *addr,socklen_t *addrlen) {
-    const int result = net_accept(s, addr, addrlen);
-    if (result < 0) {
-        errno = -result;
-        return -1;
+static inline int ftp_socket_close_wii(struct FtpSocket* sock) {
+    if (sock->s) {
+        net_shutdown(sock->s, SHUT_RDWR);
+        net_close(sock->s);
+        sock->s = 0;
     }
-    return result;
+    return 0;
 }
 
-static inline s32 socket_bind(s32 s,struct sockaddr *name,socklen_t namelen) {
-    const int result = net_bind(s, name, namelen);
-    if (result < 0) {
-        errno = -result;
+static inline int ftp_socket_accept_wii(struct FtpSocket* sock_out, struct FtpSocket* listen_sock, struct sockaddr* addr, size_t* addrlen) {
+    socklen_t len = *addrlen;
+    const int rc = sock_out->s = net_accept(listen_sock->s, addr, &len);
+    if (rc < 0) {
+        errno = -rc;
         return -1;
     }
-    return result;
+    *addrlen = len;
+    return rc;
 }
 
-static inline s32 socket_connect(s32 s,struct sockaddr *addr,socklen_t addrlen) {
-    const int result = net_connect(s, addr, addrlen);
-    if (result < 0) {
-        errno = -result;
+static inline int ftp_socket_bind_wii(struct FtpSocket* sock, struct sockaddr* addr, size_t addrlen) {
+    const int rc = net_bind(sock->s, addr, addrlen);
+    if (rc < 0) {
+        errno = -rc;
         return -1;
     }
-    return result;
+    return rc;
 }
 
-static inline s32 socket_listen(s32 s,u32 backlog) {
-    const int result = net_listen(s, backlog);
-    if (result < 0) {
-        errno = -result;
+static inline int ftp_socket_connect_wii(struct FtpSocket* sock, struct sockaddr* addr, size_t addrlen) {
+    const int rc = net_connect(sock->s, addr, addrlen);
+    if (rc < 0) {
+        errno = -rc;
         return -1;
     }
-    return result;
+    return rc;
 }
 
-static inline s32 socket_getsockname(s32 s, struct sockaddr *addr, socklen_t *addrlen) {
-    const int result = net_getsockname(s, addr, addrlen);
-    if (result < 0) {
-        errno = -result;
+static inline int ftp_socket_listen_wii(struct FtpSocket* sock, int backlog) {
+    const int rc = net_listen(sock->s, backlog);
+    if (rc < 0) {
+        errno = -rc;
         return -1;
     }
-    return result;
+    return rc;
 }
 
-static inline s32 socket_setsockopt(s32 s,u32 level,u32 optname,const void *optval,socklen_t optlen) {
-    const int result = net_setsockopt(s, level, optname, optval, optlen);
-    if (result < 0) {
-        errno = -result;
+static inline int ftp_socket_getsockname_wii(struct FtpSocket* sock, struct sockaddr* addr, size_t* addrlen) {
+    socklen_t len = *addrlen;
+    const int rc = net_getsockname(sock->s, addr, &len);
+    if (rc < 0) {
+        errno = -rc;
         return -1;
     }
-    return result;
+    *addrlen = len;
+    return rc;
 }
 
-static inline s32 socket_fcntl(s32 s, u32 cmd, u32 flags) {
-    const int result = net_fcntl(s, cmd, flags);
-    if (result < 0) {
-        errno = -result;
-        return -1;
-    }
-    return result;
+static inline int ftp_socket_set_reuseaddr_enable_wii(struct FtpSocket* sock, int enable) {
+#if defined(HAVE_SO_REUSEADDR) && HAVE_SO_REUSEADDR
+    const int option = 1;
+    return ftp_socket_setsockopt_wii(sock->s, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
+#else
+    return 0;
+#endif
 }
 
-static inline s32 socket_poll(struct pollfd *fds, s32 nsds, s32 timeout) {
-    const int result = net_poll((struct pollsd*)fds, nsds, timeout);
-    if (result < 0) {
-        errno = -result;
+static inline int ftp_socket_set_nodelay_enable_wii(struct FtpSocket* sock, int enable) {
+#if defined(HAVE_TCP_NODELAY) && HAVE_TCP_NODELAY
+    const int option = 1;
+    return ftp_socket_setsockopt_wii(sock->s, IPPROTO_TCP, TCP_NODELAY, &option, sizeof(option));
+#else
+    return 0;
+#endif
+}
+
+static inline int ftp_socket_set_keepalive_enable_wii(struct FtpSocket* sock, int enable) {
+#if defined(HAVE_SO_KEEPALIVE) && HAVE_SO_KEEPALIVE
+    const int option = 1;
+    return ftp_socket_setsockopt_wii(sock->s, SOL_SOCKET, SO_KEEPALIVE, &option, sizeof(option));
+#else
+    return 0;
+#endif
+}
+
+static inline int ftp_socket_set_throughput_enable_wii(struct FtpSocket* sock, int enable) {
+#if defined(HAVE_IPTOS_THROUGHPUT) && HAVE_IPTOS_THROUGHPUT
+    const int option = IPTOS_THROUGHPUT;
+    return ftp_socket_setsockopt_wii(sock->s, IPPROTO_IP, IP_TOS, &option, sizeof(option));
+#else
+    return 0;
+#endif
+}
+
+static inline int ftp_socket_set_nonblocking_enable_wii(struct FtpSocket* sock, int enable) {
+    int rc = ftp_socket_fcntl_wii(sock->s, F_GETFL, 0);
+    if (rc >= 0) {
+        rc = ftp_socket_fcntl_wii(sock->s, F_SETFL, rc | O_NONBLOCK);
+    }
+    errno = -rc;
+    return rc;
+}
+
+static inline int ftp_socket_poll_wii(struct FtpSocketPollEntry* entries, struct FtpSocketPollFd* _fds, size_t nfds, int timeout) {
+    struct pollsd* fds = (struct pollsd*)_fds;
+
+    for (size_t i = 0; i < nfds; i++) {
+        if (entries[i].fd) {
+            fds[i].socket = entries[i].fd->s;
+            fds[i].events = 0;
+            if (entries[i].events & FtpSocketPollType_IN) {
+                fds[i].events |= POLLIN;
+            }
+            if (entries[i].events & FtpSocketPollType_OUT) {
+                fds[i].events |= POLLOUT;
+            }
+        } else {
+            fds[i].socket = -1;
+        }
+    }
+
+    int rc = net_poll(fds, nfds, timeout);
+    if (rc < 0) {
+        errno = -rc;
         return -1;
     }
-    return result;
+
+    for (size_t i = 0; i < nfds; i++) {
+        if (entries[i].fd) {
+            entries[i].revents = 0;
+            if (fds[i].revents & POLLIN) {
+                entries[i].revents |= FtpSocketPollType_IN;
+            }
+            if (fds[i].revents & POLLOUT) {
+                entries[i].revents |= FtpSocketPollType_OUT;
+            }
+            if (fds[i].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+                entries[i].revents |= FtpSocketPollType_ERROR;
+            }
+        }
+    }
+
+    return rc;
 }
+
+#define ftp_socket_open ftp_socket_open_wii
+#define ftp_socket_recv ftp_socket_recv_wii
+#define ftp_socket_send ftp_socket_send_wii
+#define ftp_socket_close ftp_socket_close_wii
+#define ftp_socket_accept ftp_socket_accept_wii
+#define ftp_socket_bind ftp_socket_bind_wii
+#define ftp_socket_connect ftp_socket_connect_wii
+#define ftp_socket_listen ftp_socket_listen_wii
+#define ftp_socket_getsockname ftp_socket_getsockname_wii
+#define ftp_socket_set_reuseaddr_enable ftp_socket_set_reuseaddr_enable_wii
+#define ftp_socket_set_nodelay_enable ftp_socket_set_nodelay_enable_wii
+#define ftp_socket_set_keepalive_enable ftp_socket_set_keepalive_enable_wii
+#define ftp_socket_set_throughput_enable ftp_socket_set_throughput_enable_wii
+#define ftp_socket_set_nonblocking_enable ftp_socket_set_nonblocking_enable_wii
+#define ftp_socket_poll ftp_socket_poll_wii
+
+#ifdef __cplusplus
+}
+#endif

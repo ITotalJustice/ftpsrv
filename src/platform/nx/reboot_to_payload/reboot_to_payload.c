@@ -6,7 +6,13 @@
 #include "reboot_to_payload.h"
 #include "../utils.h"
 
-#define IRAM_PAYLOAD_MAX_SIZE 0x24000
+enum {
+    SplConfigItem_ExosphereVersion = 65000,
+    SplConfigItem_NeedsReboot      = 65001,
+    SplConfigItem_NeedsShutdown    = 65002,
+    SplConfigItem_ExosphereVerHash = 65003,
+    SplConfigItem_HasRcmBugPatch   = 65004,
+};
 
 bool validate_payload_from_file(FsFile* file, bool check_hekate) {
     s64 size;
@@ -68,34 +74,27 @@ bool is_r2p_supported(void) {
     return can_reboot;
 }
 
-bool reboot_to_payload(u8* iwram_buf, u32 size) {
-    if (size > IRAM_PAYLOAD_MAX_SIZE) {
-        return false;
-    }
+void smcRebootToIramPayload(void)
+{
+    splInitialize();
+    splSetConfig((SplConfigItem)65001, 2);
+    splExit();
 
-    if (!is_r2p_supported()) {
-        return false;
-    }
+    // the below doesn't work
+    // SecmonArgs args;
+    // args.X[0] = 0xC3000401;                /* smcSetConfig */
+    // args.X[1] = SplConfigItem_NeedsReboot; /* Exosphere reboot */
+    // args.X[3] = 2;                         /* Perform reboot to payload at 0x40010000 in IRAM. */
+    // svcCallSecureMonitor(&args);
+}
 
-    Result rc;
-    if (R_FAILED(rc = spsmInitialize())) {
-        return false;
-    }
-
-    smExit(); //Required to connect to ams:bpc
-    rc = amsBpcInitialize();
-    smInitialize();
-    if (R_FAILED(rc)) {
-        return false;
-    }
-
-    rc = amsBpcSetRebootPayload(iwram_buf, IRAM_PAYLOAD_MAX_SIZE);
-    amsBpcExit();
-
-    if (R_SUCCEEDED(rc)) {
-        rc = spsmShutdown(true);
-    }
-
-    spsmExit();
-    return R_SUCCEEDED(rc);
+void smcCopyToIram(uintptr_t iram_addr, const void *src_addr, u32 size)
+{
+    SecmonArgs args;
+    args.X[0] = 0xF0000201;     /* smcAmsIramCopy */
+    args.X[1] = (u64)src_addr;  /* DRAM address */
+    args.X[2] = (u64)iram_addr; /* IRAM address */
+    args.X[3] = size;           /* Amount to copy */
+    args.X[4] = 1;              /* 1 = Write */
+    svcCallSecureMonitor(&args);
 }

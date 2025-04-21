@@ -15,14 +15,9 @@
 
 #include <time.h>
 #include <unistd.h>
-#include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <errno.h>
-
-#if defined(HAVE_IPTOS_THROUGHPUT) && HAVE_IPTOS_THROUGHPUT
-    #include <netinet/ip.h>
-#endif
 
 // helper which returns the size of array
 #define FTP_ARR_SZ(x) (sizeof(x) / sizeof(x[0]))
@@ -139,9 +134,9 @@ struct FtpSession {
 
     struct FtpTransfer transfer;
 
-    int control_sock; // socket for commands
-    int data_sock;    // socket for data (PORT/PASV)
-    int pasv_sock;    // socket for PASV listen fd
+    struct FtpSocket control_sock; // socket for commands
+    struct FtpSocket data_sock;    // socket for data (PORT/PASV)
+    struct FtpSocket pasv_sock;    // socket for PASV listen fd
 
     struct sockaddr_in control_sockaddr;
     struct sockaddr_in data_sockaddr;
@@ -172,7 +167,7 @@ struct FtpCommand {
 
 struct Ftp {
     int initialised;
-    int server_sock;
+    struct FtpSocket server_sock;
 
     unsigned session_count;
     struct FtpSession sessions[FTP_MAX_SESSIONS];
@@ -231,61 +226,17 @@ static void ftp_log_callback(enum FTP_API_LOG_TYPE type, const char* msg) {
     }
 }
 
-static int ftp_set_socket_reuseaddr_enable(int sock) {
-#if defined(HAVE_SO_REUSEADDR) && HAVE_SO_REUSEADDR
-    const int option = 1;
-    return socket_setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
-#else
-    return 0;
-#endif
+static void ftp_set_server_socket_options(struct FtpSocket* sock) {
+    ftp_socket_set_nonblocking_enable(sock, 1);
+    ftp_socket_set_reuseaddr_enable(sock, 1);
+    ftp_socket_set_nodelay_enable(sock, 1);
+    ftp_socket_set_keepalive_enable(sock, 1);
 }
 
-static int ftp_set_socket_nodelay_enable(int sock) {
-#if defined(HAVE_TCP_NODELAY) && HAVE_TCP_NODELAY
-    const int option = 1;
-    return socket_setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &option, sizeof(option));
-#else
-    return 0;
-#endif
-}
-
-static int ftp_set_socket_keepalive_enable(int sock) {
-#if defined(HAVE_SO_KEEPALIVE) && HAVE_SO_KEEPALIVE
-    const int option = 1;
-    return socket_setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, &option, sizeof(option));
-#else
-    return 0;
-#endif
-}
-
-static int ftp_set_socket_throughput_enable(int sock) {
-#if defined(HAVE_IPTOS_THROUGHPUT) && HAVE_IPTOS_THROUGHPUT
-    const int option = IPTOS_THROUGHPUT;
-    return socket_setsockopt(sock, IPPROTO_IP, IP_TOS, &option, sizeof(option));
-#else
-    return 0;
-#endif
-}
-
-static int ftp_set_socket_nonblocking_enable(int sock) {
-    int rc = socket_fcntl(sock, F_GETFL, 0);
-    if (rc >= 0) {
-        rc = socket_fcntl(sock, F_SETFL, rc | O_NONBLOCK);
-    }
-    return rc;
-}
-
-static void ftp_set_server_socket_options(int sock) {
-    ftp_set_socket_nonblocking_enable(sock);
-    ftp_set_socket_reuseaddr_enable(sock);
-    ftp_set_socket_nodelay_enable(sock);
-    ftp_set_socket_keepalive_enable(sock);
-}
-
-static void ftp_set_data_socket_options(int sock) {
-    ftp_set_socket_nonblocking_enable(sock);
-    ftp_set_socket_keepalive_enable(sock);
-    ftp_set_socket_throughput_enable(sock);
+static void ftp_set_data_socket_options(struct FtpSocket* sock) {
+    ftp_socket_set_nonblocking_enable(sock, 1);
+    ftp_socket_set_keepalive_enable(sock, 1);
+    ftp_socket_set_throughput_enable(sock, 1);
 }
 
 static inline unsigned socket_bind_port(void) {
@@ -482,30 +433,16 @@ static void ftp_client_msg(struct FtpSession* session, unsigned code, const char
     ftp_session_send(session);
 }
 
-// https://blog.netherlabs.nl/articles/2009/01/18/the-ultimate-so_linger-page-or-why-is-my-tcp-not-reliable
-static void ftp_close_socket(int* sock) {
-    // tldr: when send() returns, this does not mean that all data
-    // has been sent to the server. All this means is that the data
-    // has been sent to the kernel!
-    // when calling close, the kernel *may* remove that data, and
-    // thus the client will *not* receive it!
-    if (*sock >= 0) {
-        socket_shutdown(*sock, SHUT_RDWR);
-        socket_close(*sock);
-        *sock = -1;
-    }
-}
-
 static void ftp_data_transfer_end(struct FtpSession* session) {
     switch (session->data_connection) {
         case FTP_DATA_CONNECTION_NONE:
             break;
         case FTP_DATA_CONNECTION_ACTIVE:
-            ftp_close_socket(&session->data_sock);
+            ftp_socket_close(&session->data_sock);
             break;
         case FTP_DATA_CONNECTION_PASSIVE:
-            ftp_close_socket(&session->data_sock);
-            ftp_close_socket(&session->pasv_sock);
+            ftp_socket_close(&session->data_sock);
+            ftp_socket_close(&session->pasv_sock);
             break;
     }
 
@@ -524,7 +461,7 @@ static void ftp_data_poll(struct FtpSession* session) {
     int rc = 0;
 
     if (session->data_connection == FTP_DATA_CONNECTION_ACTIVE) {
-        rc = socket_connect(session->data_sock, (struct sockaddr*)&session->data_sockaddr, sizeof(session->data_sockaddr));
+        rc = ftp_socket_connect(&session->data_sock, (struct sockaddr*)&session->data_sockaddr, sizeof(session->data_sockaddr));
         if (rc < 0) {
             if (errno == EAGAIN || errno == EINPROGRESS || errno == EALREADY) {
                 // blocking...
@@ -538,8 +475,8 @@ static void ftp_data_poll(struct FtpSession* session) {
             session->transfer.connection_pending = false;
         }
     } else {
-        socklen_t socklen = sizeof(session->pasv_sockaddr);
-        rc = session->data_sock = socket_accept(session->pasv_sock, (struct sockaddr*)&session->pasv_sockaddr, &socklen);
+        size_t socklen = sizeof(session->pasv_sockaddr);
+        rc = ftp_socket_accept(&session->data_sock, &session->pasv_sock, (struct sockaddr*)&session->pasv_sockaddr, &socklen);
         if (rc < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 // blocking...
@@ -548,7 +485,7 @@ static void ftp_data_poll(struct FtpSession* session) {
                 ftp_data_transfer_end(session);
             }
         } else {
-            ftp_set_data_socket_options(session->data_sock);
+            ftp_set_data_socket_options(&session->data_sock);
             session->transfer.connection_pending = false;
         }
     }
@@ -559,9 +496,9 @@ static void ftp_data_open(struct FtpSession* session, enum FTP_TRANSFER_MODE mod
     ftp_client_msg(session, 150, "File status okay; about to open data connection.");
 
     if (session->data_connection == FTP_DATA_CONNECTION_ACTIVE) {
-        rc = session->data_sock = socket_open(PF_INET, SOCK_STREAM, 0);
+        rc = ftp_socket_open(&session->data_sock, PF_INET, SOCK_STREAM, 0);
         if (rc >= 0) {
-            ftp_set_data_socket_options(session->data_sock);
+            ftp_set_data_socket_options(&session->data_sock);
         }
     }
 
@@ -581,7 +518,7 @@ static void ftp_data_open(struct FtpSession* session, enum FTP_TRANSFER_MODE mod
 static enum FTP_FILE_TRANSFER_STATE ftp_dir_data_transfer_progress(struct FtpSession* session, struct FtpTransfer* transfer) {
     // send as much data as possible.
     if (transfer->size) {
-        const int n = socket_send(session->data_sock, transfer->list_buf + transfer->offset, transfer->size, 0);
+        const int n = ftp_socket_send(&session->data_sock, transfer->list_buf + transfer->offset, transfer->size, 0);
         if (n < 0) {
             // check if it failed due to anything but blocking.
             if (errno != EWOULDBLOCK && errno != EAGAIN) {
@@ -650,7 +587,7 @@ static enum FTP_FILE_TRANSFER_STATE ftp_file_data_transfer_progress(struct FtpSe
         } else if (n == 0) {
             return FTP_FILE_TRANSFER_STATE_FINISHED;
         } else {
-            n = socket_send(session->data_sock, g_ftp.data_buf, n, 0);
+            n = ftp_socket_send(&session->data_sock, g_ftp.data_buf, n, 0);
             if (n < 0) {
                 if (errno == EWOULDBLOCK || errno == EAGAIN) {
                     ftp_vfs_seek(&transfer->file_vfs, g_ftp.data_buf, 0, transfer->offset);
@@ -667,7 +604,7 @@ static enum FTP_FILE_TRANSFER_STATE ftp_file_data_transfer_progress(struct FtpSe
             }
         }
     } else {
-        n = socket_recv(session->data_sock, g_ftp.data_buf, sizeof(g_ftp.data_buf), 0);
+        n = ftp_socket_recv(&session->data_sock, g_ftp.data_buf, sizeof(g_ftp.data_buf), 0);
         if (n < 0) {
             if (errno == EWOULDBLOCK || errno == EAGAIN) {
                 return FTP_FILE_TRANSFER_STATE_BLOCKING;
@@ -868,27 +805,27 @@ static void ftp_cmd_PORT(struct FtpSession* session, const char* data) {
 // PASV <CRLF> | 227, 500, 501, 502, 421, 530
 static void ftp_cmd_PASV(struct FtpSession* session, const char* data) {
     ftp_data_transfer_end(session);
-    int rc = session->pasv_sock = socket_open(PF_INET, SOCK_STREAM, 0);
+    int rc = ftp_socket_open(&session->pasv_sock, PF_INET, SOCK_STREAM, 0);
 
     if (rc < 0) {
         ftp_client_msg(session, 501, "open failed Syntax error in parameters or arguments, %s.", strerror(errno));
     } else {
-        ftp_set_server_socket_options(session->pasv_sock);
+        ftp_set_server_socket_options(&session->pasv_sock);
 
         // copy current over ip addr
         session->pasv_sockaddr = session->control_sockaddr;
         session->pasv_sockaddr.sin_port = htons(socket_bind_port());
 
-        rc = socket_bind(session->pasv_sock, (struct sockaddr*)&session->pasv_sockaddr, sizeof(session->pasv_sockaddr));
+        rc = ftp_socket_bind(&session->pasv_sock, (struct sockaddr*)&session->pasv_sockaddr, sizeof(session->pasv_sockaddr));
         if (rc < 0) {
             ftp_client_msg(session, 501, "bind failed Syntax error in parameters or arguments, %s", strerror(errno));
         } else {
-            rc = socket_listen(session->pasv_sock, 1);
+            rc = ftp_socket_listen(&session->pasv_sock, 1);
             if (rc < 0) {
                 ftp_client_msg(session, 501, "listen failed Syntax error in parameters or arguments, %s.", strerror(errno));
             } else {
-                socklen_t base_len = sizeof(session->pasv_sockaddr);
-                rc = socket_getsockname(session->pasv_sock, (struct sockaddr*)&session->pasv_sockaddr, &base_len);
+                size_t base_len = sizeof(session->pasv_sockaddr);
+                rc = ftp_socket_getsockname(&session->pasv_sock, (struct sockaddr*)&session->pasv_sockaddr, &base_len);
                 if (rc < 0) {
                     ftp_client_msg(session, 501, "socket_getsockname failed Syntax error in parameters or arguments, %s.", strerror(errno));
                 } else {
@@ -908,7 +845,7 @@ static void ftp_cmd_PASV(struct FtpSession* session, const char* data) {
                 }
             }
         }
-        ftp_close_socket(&session->pasv_sock);
+        ftp_socket_close(&session->pasv_sock);
     }
 }
 
@@ -1348,28 +1285,24 @@ static const struct FtpCommand FTP_COMMANDS[] = {
 
 static int ftp_session_init(struct FtpSession* session) {
     struct sockaddr_in sa;
-    socklen_t addr_len = sizeof(sa);
+    size_t addr_len = sizeof(sa);
+    memset(session, 0, sizeof(*session));
 
-    int control_sock = socket_accept(g_ftp.server_sock, (struct sockaddr*)&sa, &addr_len);
-    if (control_sock < 0) {
-        return control_sock;
+    int rc = ftp_socket_accept(&session->control_sock, &g_ftp.server_sock, (struct sockaddr*)&sa, &addr_len);
+    if (rc < 0) {
+        return rc;
     } else {
-        ftp_set_server_socket_options(control_sock);
-
-        memset(session, 0, sizeof(*session));
-        session->control_sock = control_sock;
+        ftp_set_server_socket_options(&session->control_sock);
         session->control_sockaddr = sa;
         addr_len = sizeof(session->control_sockaddr);
 
-        int rc = socket_getsockname(session->control_sock, (struct sockaddr*)&session->control_sockaddr, &addr_len);
+        rc = ftp_socket_getsockname(&session->control_sock, (struct sockaddr*)&session->control_sockaddr, &addr_len);
         if (rc < 0) {
-            ftp_close_socket(&control_sock);
+            ftp_socket_close(&session->control_sock);
             ftp_client_msg(session, 451, "Failed to get connection info, %s.", strerror(errno));
             return rc;
         } else {
             session->state = FTP_SESSION_STATE_POLLIN;
-            session->data_sock = -1;
-            session->pasv_sock = -1;
             ftp_update_session_time(session);
             strcpy(session->pwd.s, "/");
             g_ftp.session_count++;
@@ -1382,7 +1315,7 @@ static int ftp_session_init(struct FtpSession* session) {
 static void ftp_session_close(struct FtpSession* session) {
     if (session->state != FTP_SESSION_STATE_NONE) {
         ftp_data_transfer_end(session);
-        ftp_close_socket(&session->control_sock);
+        ftp_socket_close(&session->control_sock);
         memset(session, 0, sizeof(*session));
         g_ftp.session_count--;
     }
@@ -1463,7 +1396,7 @@ static void ftp_session_progress_line(struct FtpSession* session, const char* li
 }
 
 static void ftp_session_send(struct FtpSession* session) {
-    int rc = socket_send(session->control_sock, session->send_buf + session->send_buf_offset, session->send_buf_size - session->send_buf_offset, 0);
+    int rc = ftp_socket_send(&session->control_sock, session->send_buf + session->send_buf_offset, session->send_buf_size - session->send_buf_offset, 0);
     if (rc < 0) {
         if (errno != EWOULDBLOCK && errno != EAGAIN) {
             ftp_session_close(session);
@@ -1481,7 +1414,7 @@ static void ftp_session_send(struct FtpSession* session) {
 }
 
 static void ftp_session_poll(struct FtpSession* session) {
-    int rc = socket_recv(session->control_sock, session->cmd_buf + session->cmd_buf_size, sizeof(session->cmd_buf) - session->cmd_buf_size, 0);
+    int rc = ftp_socket_recv(&session->control_sock, session->cmd_buf + session->cmd_buf_size, sizeof(session->cmd_buf) - session->cmd_buf_size, 0);
     if (rc < 0) {
         if (errno != EWOULDBLOCK && errno != EAGAIN) {
             ftp_session_close(session);
@@ -1529,10 +1462,10 @@ int ftpsrv_init(const struct FtpSrvConfig* cfg) {
         memcpy(&g_ftp.cfg, cfg, sizeof(*cfg));
         g_ftp.initialised = 1;
 
-        rc = g_ftp.server_sock = socket_open(PF_INET, SOCK_STREAM, 0);
+        rc = ftp_socket_open(&g_ftp.server_sock, PF_INET, SOCK_STREAM, 0);
         if (rc < 0) {
         } else {
-            ftp_set_server_socket_options(g_ftp.server_sock);
+            ftp_set_server_socket_options(&g_ftp.server_sock);
 
             struct sockaddr_in sa = {
                 .sin_family = PF_INET,
@@ -1540,10 +1473,10 @@ int ftpsrv_init(const struct FtpSrvConfig* cfg) {
                 .sin_addr.s_addr = INADDR_ANY,
             };
 
-            rc = socket_bind(g_ftp.server_sock, (struct sockaddr*)&sa, sizeof(sa));
+            rc = ftp_socket_bind(&g_ftp.server_sock, (struct sockaddr*)&sa, sizeof(sa));
             if (rc < 0) {
             } else {
-                rc = socket_listen(g_ftp.server_sock, 5); /* SOMAXCONN */
+                rc = ftp_socket_listen(&g_ftp.server_sock, 5); /* SOMAXCONN */
             }
         }
     }
@@ -1569,66 +1502,63 @@ int ftpsrv_loop(int timeout_ms) {
         }
     }
 
-#if defined(HAVE_POLL) && HAVE_POLL
-
-    static struct pollfd fds[1 + FTP_MAX_SESSIONS * 2] = {0};
-    const nfds_t nfds = FTP_ARR_SZ(fds);
+    static struct FtpSocketPollEntry fds[1 + FTP_MAX_SESSIONS * 2] = {0};
+    static struct FtpSocketPollFd poll_fds[1 + FTP_MAX_SESSIONS * 2] = {0};
+    const size_t nfds = FTP_ARR_SZ(fds);
 
     // initialise fds.
-    for (size_t i = 0; i < nfds; i++) {
-        fds[i].fd = -1;
-    }
+    memset(fds, 0, sizeof(fds));
 
     // add server socket to the first entry.
     if (g_ftp.session_count < FTP_MAX_SESSIONS) {
-        fds[0].fd = g_ftp.server_sock;
-        fds[0].events = POLLIN;
+        fds[0].fd = &g_ftp.server_sock;
+        fds[0].events = FtpSocketPollType_IN;
     }
 
     // add each session control and data socket.
     for (size_t i = 0; i < FTP_ARR_SZ(g_ftp.sessions); i++) {
         const size_t si = 1 + i * 2;
         const size_t sd = 1 + i * 2 + 1;
-        const struct FtpSession* session = &g_ftp.sessions[i];
+        struct FtpSession* session = &g_ftp.sessions[i];
 
         if (session->state != FTP_SESSION_STATE_NONE) {
             if (session->state == FTP_SESSION_STATE_POLLIN) {
-                fds[si].fd = session->control_sock;
-                fds[si].events = POLLIN;
+                fds[si].fd = &session->control_sock;
+                fds[si].events = FtpSocketPollType_IN;
             } else if (session->state == FTP_SESSION_STATE_POLLOUT) {
-                fds[si].fd = session->control_sock;
-                fds[si].events = POLLOUT;
+                fds[si].fd = &session->control_sock;
+                fds[si].events = FtpSocketPollType_OUT;
             }
 
             if (session->transfer.mode != FTP_TRANSFER_MODE_NONE) {
                 // wait until the socket is ready to connect.
                 if (session->transfer.connection_pending) {
                     if (session->data_connection == FTP_DATA_CONNECTION_PASSIVE) {
-                        fds[sd].fd = session->pasv_sock;
-                        fds[sd].events = POLLIN;
+                        fds[sd].fd = &session->pasv_sock;
+                        fds[sd].events = FtpSocketPollType_IN;
                     } else {
-                        fds[sd].fd = session->data_sock;
-                        fds[sd].events = POLLOUT;
+                        fds[sd].fd = &session->data_sock;
+                        fds[sd].events = FtpSocketPollType_OUT;
                     }
                 } else {
-                    fds[sd].fd = session->data_sock;
+                    fds[sd].fd = &session->data_sock;
                     if (session->transfer.mode == FTP_TRANSFER_MODE_STOR) {
-                        fds[sd].events = POLLIN;
+                        fds[sd].events = FtpSocketPollType_IN;
                     } else {
-                        fds[sd].events = POLLOUT;
+                        fds[sd].events = FtpSocketPollType_OUT;
                     }
                 }
             }
         }
     }
 
-    const int rc = socket_poll(fds, nfds, timeout_ms);
+    const int rc = ftp_socket_poll(fds, poll_fds, nfds, timeout_ms);
     if (rc < 0) {
         return FTP_API_LOOP_ERROR_INIT;
     } else {
-        if (fds[0].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+        if (fds[0].revents & FtpSocketPollType_ERROR) {
             return FTP_API_LOOP_ERROR_INIT;
-        } else if (fds[0].revents & POLLIN) {
+        } else if (fds[0].revents & FtpSocketPollType_IN) {
             for (size_t i = 0; i < FTP_ARR_SZ(g_ftp.sessions); i++) {
                 if (g_ftp.sessions[i].state == FTP_SESSION_STATE_NONE) {
                     ftp_session_init(&g_ftp.sessions[i]);
@@ -1642,17 +1572,18 @@ int ftpsrv_loop(int timeout_ms) {
             const size_t sd = 1 + i * 2 + 1;
             struct FtpSession* session = &g_ftp.sessions[i];
 
-            if (fds[si].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+            // if (fds[si].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+            if (fds[si].revents & FtpSocketPollType_ERROR) {
                 ftp_session_close(session);
-            } else if (fds[si].revents & POLLIN) {
+            } else if (fds[si].revents & FtpSocketPollType_IN) {
                 ftp_session_poll(session);
-            } else if (fds[si].revents & POLLOUT) {
+            } else if (fds[si].revents & FtpSocketPollType_OUT) {
                 ftp_session_send(session);
             }
 
             // don't close data transfer on error as it will confuse the client (ffmpeg)
             if (session->state != FTP_SESSION_STATE_NONE && session->transfer.mode != FTP_TRANSFER_MODE_NONE) {
-                if (fds[sd].revents & (POLLIN | POLLOUT)) {
+                if (fds[sd].revents & (FtpSocketPollType_IN | FtpSocketPollType_OUT)) {
                     if (session->transfer.connection_pending) {
                         ftp_data_poll(session);
                     } else {
@@ -1663,7 +1594,7 @@ int ftpsrv_loop(int timeout_ms) {
         }
     }
 
-#else // defined(HAVE_POLL) && HAVE_POLL
+#if 0
 
     // initialise fds.
     int nfds = 0;
@@ -1757,7 +1688,7 @@ int ftpsrv_loop(int timeout_ms) {
         }
     }
 
-#endif // defined(HAVE_POLL) && HAVE_POLL
+#endif
 
     return FTP_API_LOOP_ERROR_OK;
 }
@@ -1773,6 +1704,6 @@ void ftpsrv_exit(void) {
         }
     }
 
-    ftp_close_socket(&g_ftp.server_sock);
+    ftp_socket_close(&g_ftp.server_sock);
     g_ftp.initialised = 0;
 }

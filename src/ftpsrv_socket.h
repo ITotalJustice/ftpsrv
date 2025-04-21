@@ -7,22 +7,46 @@
 extern "C" {
 #endif
 
-#if 0
-int socket_open(int domain, int type, int protocol);
-int socket_recv(int fd, void* mem, int size, int flags);
-int socket_send(int fd, const void* data, int size, int flags);
-int socket_close(int fd);
-int socket_shutdown(int fd, int how);
-int socket_accept(int fd, struct sockaddr* addr, socklen_t* addrlen);
-int socket_bind(int fd, struct sockaddr* addr, socklen_t addrlen);
-int socket_connect(int fd,struct sockaddr* addr, socklen_t addrlen);
-int socket_listen(int fd, int backlog);
-int socket_getsockname(int fd, struct sockaddr* addr, socklen_t* addrlen);
-int socket_setsockopt(int fd, int level, int optname, const void* optval, socklen_t optlen);
-int socket_fcntl(int fd, int cmd, int flags);
-int socket_select(int nfds, fd_set* readfds, fd_set* writefds, fd_set* exceptfds, struct timeval* timeout);
-int socket_poll(struct pollfd* fds, int nsds, int timeout);
-#endif
+#include <stddef.h>
+
+enum FtpSocketPollType {
+    FtpSocketPollType_IN = 1 << 0,
+    FtpSocketPollType_OUT = 1 << 1,
+    FtpSocketPollType_ERROR = 1 << 2,
+};
+
+struct FtpSocketPollEntry {
+    struct FtpSocket* fd;
+    enum FtpSocketPollType events;
+    enum FtpSocketPollType revents;
+};
+
+struct FtpSocketPollFd;
+struct FtpSocketLen;
+struct FtpSocket;
+
+struct sockaddr;
+struct sockaddr_in;
+
+int ftp_socket_open(struct FtpSocket* sock, int domain, int type, int protocol);
+int ftp_socket_recv(struct FtpSocket* sock, void* buf, size_t size, int flags);
+int ftp_socket_send(struct FtpSocket* sock, const void* buf, size_t size, int flags);
+int ftp_socket_close(struct FtpSocket* sock);
+int ftp_socket_accept(struct FtpSocket* sock_out, struct FtpSocket* listen_sock, struct sockaddr* addr, size_t* addrlen);
+int ftp_socket_bind(struct FtpSocket* sock, struct sockaddr* addr, size_t addrlen);
+int ftp_socket_connect(struct FtpSocket* sock, struct sockaddr* addr, size_t addrlen);
+int ftp_socket_listen(struct FtpSocket* sock, int backlog);
+int ftp_socket_getsockname(struct FtpSocket* sock, struct sockaddr* addr, size_t* addrlen);
+
+// socket options
+int ftp_socket_set_reuseaddr_enable(struct FtpSocket* sock, int enable);
+int ftp_socket_set_nodelay_enable(struct FtpSocket* sock, int enable);
+int ftp_socket_set_keepalive_enable(struct FtpSocket* sock, int enable);
+int ftp_socket_set_throughput_enable(struct FtpSocket* sock, int enable);
+int ftp_socket_set_nonblocking_enable(struct FtpSocket* sock, int enable);
+
+// socket polling, may internally use select() if poll() is not available.
+int ftp_socket_poll(struct FtpSocketPollEntry* entries, struct FtpSocketPollFd* fds, size_t nfds, int timeout);
 
 #ifdef FTP_SOCKET_HEADER
     #include FTP_SOCKET_HEADER

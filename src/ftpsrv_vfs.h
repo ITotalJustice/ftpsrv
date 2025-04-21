@@ -16,6 +16,43 @@ enum FtpVfsOpenMode {
     FtpVfsOpenMode_APPEND,
 };
 
+// todo: finish below
+#if 0
+enum FtpVfsStatMode {
+    FtpVfsStatMode_IFMT,
+    FtpVfsStatMode_IFDIR,
+    FtpVfsStatMode_IFCHR,
+    FtpVfsStatMode_IFBLK,
+    FtpVfsStatMode_IFREG,
+    FtpVfsStatMode_IFLNK,
+    FtpVfsStatMode_IFSOCK,
+    FtpVfsStatMode_IFIFO,
+
+    FtpVfsStatMode_IRUSR,
+    FtpVfsStatMode_IWUSR,
+    FtpVfsStatMode_IXUSR,
+    FtpVfsStatMode_IRGRP,
+    FtpVfsStatMode_IWGRP,
+    FtpVfsStatMode_IXGRP,
+    FtpVfsStatMode_IROTH,
+    FtpVfsStatMode_IWOTH,
+    FtpVfsStatMode_IXOTH,
+
+    // helpers
+    FtpVfsStatMode_FILE_READ,
+    FtpVfsStatMode_FILE_RW,
+    FtpVfsStatMode_DIR_READ,
+    FtpVfsStatMode_DIR_RW,
+};
+
+struct FtpVfsStat {
+    enum FtpVfsStatMode mode;
+    unsigned nlink;
+    time_t mtime;
+    size_t size;
+};
+#endif
+
 struct FtpVfsFile;
 struct FtpVfsDir;
 struct FtpVfsDirEntry;

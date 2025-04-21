@@ -43,18 +43,6 @@ static const char* HEKATE_PATHS[] = {
     "/payload.bin",
 };
 
-// messages will no longer be sent, but will be logged.
-static u8* close_sockets(u32* size) {
-    extern u8 SOCKET_TRANSFER_MEM[];
-    extern const u32 SOCKET_TRANSFER_MEM_SIZE;
-
-    socketExit();
-    bsdExit();
-
-    *size = SOCKET_TRANSFER_MEM_SIZE;
-    return memset(SOCKET_TRANSFER_MEM, 0xFF, SOCKET_TRANSFER_MEM_SIZE);
-}
-
 static int ini_browse_callback(const mTCHAR *Section, const mTCHAR *Key, const mTCHAR *Value, void *UserData) {
     struct HekateConfigIni* h = UserData;
 
@@ -249,22 +237,29 @@ static int ftp_custom_cmd_RTOP(void* userdata, const char* data, char* msg_buf, 
             if (R_FAILED(rc = fsFsOpenFile(fs, nxpath, FsOpenMode_Read, &file))) {
                 snprintf(msg_buf, msg_buf_len, "Syntax error in parameters or arguments, Failed to open file: %s", nxpath);
             } else {
-                if (!validate_payload_from_file(&file, false)) {
-                    snprintf(msg_buf, msg_buf_len, "Syntax error in parameters or arguments, Not a valid payload: %s", nxpath);
+                s64 size;
+                if (R_FAILED(rc = fsFileGetSize(&file, &size))) {
+                    snprintf(msg_buf, msg_buf_len, "Syntax error in parameters or arguments, Failed to open file: %s", nxpath);
                 } else {
-                    u32 payload_buf_size;
-                    u8* paylod_buf = close_sockets(&payload_buf_size);
-
-                    u64 bytes_read;
-                    rc = fsFileRead(&file, 0, paylod_buf, payload_buf_size, 0, &bytes_read);
-                    if (R_FAILED(rc)) {
-                        snprintf(msg_buf, msg_buf_len, "Failed to read file: %s, please restart ftpsrv", nxpath);
+                    if (!validate_payload_from_file(&file, false)) {
+                        snprintf(msg_buf, msg_buf_len, "Syntax error in parameters or arguments, Not a valid payload: %s", nxpath);
                     } else {
-                        if (!reboot_to_payload(paylod_buf, bytes_read)) {
-                            snprintf(msg_buf, msg_buf_len, "Failed to reboot to payload: %s, please restart ftpsrv", nxpath);
-                        } else {
+                        for (s64 off = 0; off < size; off += 0x1000) {
+                            alignas(0x1000) u8 page_buf[0x1000];
+
+                            u64 bytes_read;
+                            if (R_FAILED(rc = fsFileRead(&file, off, page_buf, sizeof(page_buf), 0, &bytes_read))) {
+                                snprintf(msg_buf, msg_buf_len, "Failed to read file: %s, please restart ftpsrv", nxpath);
+                                break;
+                            }
+
+                            smcCopyToIram(AMS_IWRAM_OFFSET + off, page_buf, bytes_read);
+                        }
+
+                        if (R_SUCCEEDED(rc)) {
                             code = 200;
                             snprintf(msg_buf, msg_buf_len, "Bye!");
+                            smcRebootToIramPayload();
                         }
                     }
                 }
@@ -311,31 +306,44 @@ static int ftp_custom_cmd_RTOH(void* userdata, const char* data, char* msg_buf, 
             if (found_hekate < 0) {
                 snprintf(msg_buf, msg_buf_len, "Failed: unable to find hekate!");
             } else {
-                u32 payload_buf_size;
-                u8* paylod_buf = close_sockets(&payload_buf_size);
-
-                u64 bytes_read;
-                rc = fsFileRead(&file, 0, paylod_buf, payload_buf_size, 0, &bytes_read);
-                fsFileClose(&file);
-                if (R_FAILED(rc)) {
-                    snprintf(msg_buf, msg_buf_len, "Failed to read file: %s, please restart ftpsrv", HEKATE_PATHS[found_hekate]);
+                s64 size;
+                if (R_FAILED(rc = fsFileGetSize(&file, &size))) {
+                    snprintf(msg_buf, msg_buf_len, "Syntax error in parameters or arguments, Failed to open file: %s", HEKATE_PATHS[found_hekate]);
                 } else {
-                    paylod_buf[0x94] = 1 << 0; // [boot_cfg] Force AutoBoot
-                    paylod_buf[0x95] = rr.dec.autoboot_idx; // [autoboot] Load config at this index
-                    paylod_buf[0x96] = rr.dec.autoboot_list; // [autoboot_list] Load config from list.
-
-                    if (opt == 3) {
-                        paylod_buf[0x97] = 1 << 5; // boot into ums
-                        paylod_buf[0x98] = rr.dec.ums_idx; // mount sd card
-                    }
-
-                    if (!reboot_to_payload(paylod_buf, bytes_read)) {
-                        snprintf(msg_buf, msg_buf_len, "Failed to reboot to payload: %s, please restart ftpsrv", HEKATE_PATHS[found_hekate]);
+                    if (!validate_payload_from_file(&file, false)) {
+                        snprintf(msg_buf, msg_buf_len, "Syntax error in parameters or arguments, Not a valid payload: %s", HEKATE_PATHS[found_hekate]);
                     } else {
-                        code = 200;
-                        snprintf(msg_buf, msg_buf_len, "Bye!");
+                        for (s64 off = 0; off < size; off += 0x1000) {
+                            alignas(0x1000) u8 page_buf[0x1000];
+
+                            u64 bytes_read;
+                            if (R_FAILED(rc = fsFileRead(&file, off, page_buf, sizeof(page_buf), 0, &bytes_read))) {
+                                snprintf(msg_buf, msg_buf_len, "Failed to read file: %s, please restart ftpsrv", HEKATE_PATHS[found_hekate]);
+                                break;
+                            }
+
+                            if (off == 0) {
+                                page_buf[0x94] = 1 << 0; // [boot_cfg] Force AutoBoot
+                                page_buf[0x95] = rr.dec.autoboot_idx; // [autoboot] Load config at this index
+                                page_buf[0x96] = rr.dec.autoboot_list; // [autoboot_list] Load config from list.
+
+                                if (opt == 3) {
+                                    page_buf[0x97] = 1 << 5; // boot into ums
+                                    page_buf[0x98] = rr.dec.ums_idx; // mount sd card
+                                }
+                            }
+
+                            smcCopyToIram(AMS_IWRAM_OFFSET + off, page_buf, bytes_read);
+                        }
+
+                        if (R_SUCCEEDED(rc)) {
+                            code = 200;
+                            snprintf(msg_buf, msg_buf_len, "Bye!");
+                            smcRebootToIramPayload();
+                        }
                     }
                 }
+                fsFileClose(&file);
             }
         } else {
             if (!validate_payload_from_path("/bootloader/update.bin", true)) {
