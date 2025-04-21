@@ -126,6 +126,7 @@ typedef struct FtpVfs {
     int (*seek)(void* user, const void* buf, size_t size, size_t off);
     int (*close)(void* user);
     int (*isfile_open)(void* user);
+    int (*isfile_ready)(void* user);
 
     // vfs_dir
     int (*opendir)(void* user, const char* path);
@@ -133,6 +134,7 @@ typedef struct FtpVfs {
     int (*dirlstat)(void* user, const void* user_entry, const char* path, struct stat* st);
     int (*closedir)(void* user);
     int (*isdir_open)(void* user);
+    int (*isdir_ready)(void* user);
 
     // vfs_sys
     int (*stat)(const char* path, struct stat* st);

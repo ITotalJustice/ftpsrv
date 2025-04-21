@@ -64,12 +64,14 @@ int ftp_vfs_write(struct FtpVfsFile* f, const void* buf, size_t size);
 int ftp_vfs_seek(struct FtpVfsFile* f, const void* buf, size_t size, size_t off);
 int ftp_vfs_close(struct FtpVfsFile* f);
 int ftp_vfs_isfile_open(struct FtpVfsFile* f);
+int ftp_vfs_isfile_ready(struct FtpVfsFile* f);
 
 int ftp_vfs_opendir(struct FtpVfsDir* f, const char* path);
 const char* ftp_vfs_readdir(struct FtpVfsDir* f, struct FtpVfsDirEntry* entry);
 int ftp_vfs_dirlstat(struct FtpVfsDir* f, const struct FtpVfsDirEntry* entry, const char* path, struct stat* st);
 int ftp_vfs_closedir(struct FtpVfsDir* f);
 int ftp_vfs_isdir_open(struct FtpVfsDir* f);
+int ftp_vfs_isdir_ready(struct FtpVfsDir* f);
 
 int ftp_vfs_stat(const char* path, struct stat* st);
 int ftp_vfs_lstat(const char* path, struct stat* st);

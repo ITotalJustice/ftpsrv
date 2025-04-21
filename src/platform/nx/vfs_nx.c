@@ -107,6 +107,13 @@ int ftp_vfs_isfile_open(struct FtpVfsFile* f) {
     return g_vfs[f->type]->isfile_open(&f->root);
 }
 
+int ftp_vfs_isfile_ready(struct FtpVfsFile* f) {
+    if (!g_vfs[f->type]->isfile_ready) {
+        return 1;
+    }
+    return g_vfs[f->type]->isfile_ready(&f->root);
+}
+
 int ftp_vfs_opendir(struct FtpVfsDir* f, const char* path) {
     f->type = get_type(path);
     return g_vfs[f->type]->opendir(&f->root, fix_path(path, f->type));
@@ -128,6 +135,13 @@ int ftp_vfs_closedir(struct FtpVfsDir* f) {
 
 int ftp_vfs_isdir_open(struct FtpVfsDir* f) {
     return g_vfs[f->type]->isdir_open(&f->root);
+}
+
+int ftp_vfs_isdir_ready(struct FtpVfsDir* f) {
+    if (!g_vfs[f->type]->isdir_ready) {
+        return 1;
+    }
+    return g_vfs[f->type]->isdir_ready(&f->root);
 }
 
 int ftp_vfs_stat(const char* path, struct stat* st) {

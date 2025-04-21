@@ -1541,11 +1541,20 @@ int ftpsrv_loop(int timeout_ms) {
                         fds[sd].events = FtpSocketPollType_OUT;
                     }
                 } else {
-                    fds[sd].fd = &session->data_sock;
-                    if (session->transfer.mode == FTP_TRANSFER_MODE_STOR) {
-                        fds[sd].events = FtpSocketPollType_IN;
-                    } else {
-                        fds[sd].events = FtpSocketPollType_OUT;
+                    bool ready = true;
+                    if (session->transfer.mode == FTP_TRANSFER_MODE_RETR || session->transfer.mode == FTP_TRANSFER_MODE_STOR) {
+                        ready = ftp_vfs_isfile_ready(&session->transfer.file_vfs);
+                    } else if (session->transfer.mode == FTP_TRANSFER_MODE_LIST || session->transfer.mode == FTP_TRANSFER_MODE_NLST) {
+                        ready = ftp_vfs_isdir_ready(&session->transfer.dir_vfs);
+                    }
+
+                    if (ready) {
+                        fds[sd].fd = &session->data_sock;
+                        if (session->transfer.mode == FTP_TRANSFER_MODE_STOR) {
+                            fds[sd].events = FtpSocketPollType_IN;
+                        } else {
+                            fds[sd].events = FtpSocketPollType_OUT;
+                        }
                     }
                 }
             }
@@ -1593,102 +1602,6 @@ int ftpsrv_loop(int timeout_ms) {
             }
         }
     }
-
-#if 0
-
-    // initialise fds.
-    int nfds = 0;
-    fd_set rfds, wfds, efds;
-    FD_ZERO(&rfds); FD_ZERO(&wfds); FD_ZERO(&efds);
-
-    // sets an fd for r/w and efds and adjusts nfds.
-    #define FD_SET_HELPER(nfds, fd, rwsetp) do { \
-        assert(fd < FD_SETSIZE && "fd is out of range!"); \
-        nfds = fd > nfds ? fd : nfds; \
-        FD_SET(fd, rwsetp); FD_SET(fd, &efds); \
-    } while (0)
-
-    // add server socket to the first entry.
-    FD_SET_HELPER(nfds, g_ftp.server_sock, &rfds);
-
-    // add each session control and data socket.
-    for (size_t i = 0; i < FTP_ARR_SZ(g_ftp.sessions); i++) {
-        const struct FtpSession* session = &g_ftp.sessions[i];
-
-        if (session->state != FTP_SESSION_STATE_NONE) {
-            if (session->state == FTP_SESSION_STATE_POLLIN) {
-                FD_SET_HELPER(nfds, session->control_sock, &rfds);
-            } else if (session->state == FTP_SESSION_STATE_POLLOUT) {
-                FD_SET_HELPER(nfds, session->control_sock, &wfds);
-            }
-
-            if (session->transfer.mode != FTP_TRANSFER_MODE_NONE) {
-                if (session->transfer.connection_pending) {
-                    if (session->data_connection == FTP_DATA_CONNECTION_PASSIVE) {
-                        FD_SET_HELPER(nfds, session->pasv_sock, &rfds);
-                    } else {
-                        FD_SET_HELPER(nfds, session->data_sock, &wfds);
-                    }
-                } else {
-                    if (session->transfer.mode == FTP_TRANSFER_MODE_STOR) {
-                        FD_SET_HELPER(nfds, session->data_sock, &rfds);
-                    } else {
-                        FD_SET_HELPER(nfds, session->data_sock, &wfds);
-                    }
-                }
-            }
-        }
-    }
-
-    // if -1, then set tvp to NULL to wait forever.
-    struct timeval tv;
-    struct timeval* tvp = NULL;
-    if (timeout_ms >= 0) {
-        tvp = &tv;
-        tv.tv_sec = timeout_ms / 1000;
-        tv.tv_usec = (timeout_ms % 1000) * 1000;
-    }
-
-    const int rc = socket_select(nfds + 1, &rfds, &wfds, &efds, tvp);
-    if (rc < 0) {
-        return FTP_API_LOOP_ERROR_INIT;
-    } else {
-        if (FD_ISSET(g_ftp.server_sock, &efds)) {
-            return FTP_API_LOOP_ERROR_INIT;
-        } else if (FD_ISSET(g_ftp.server_sock, &rfds)) {
-            for (size_t i = 0; i < FTP_ARR_SZ(g_ftp.sessions); i++) {
-                if (g_ftp.sessions[i].state == FTP_SESSION_STATE_NONE) {
-                    ftp_session_init(&g_ftp.sessions[i]);
-                    break;
-                }
-            }
-        }
-
-        for (size_t i = 0; i < FTP_ARR_SZ(g_ftp.sessions); i++) {
-            struct FtpSession* session = &g_ftp.sessions[i];
-
-            if (FD_ISSET(session->control_sock, &efds)) {
-                ftp_session_close(session);
-            } else if (FD_ISSET(session->control_sock, &rfds)) {
-                ftp_session_poll(session);
-            } else if (FD_ISSET(session->control_sock, &wfds)) {
-                ftp_session_send(session);
-            }
-
-            // don't close data transfer on error as it will confuse the client (ffmpeg)
-            if (session->transfer.mode != FTP_TRANSFER_MODE_NONE && session->transfer.mode != FTP_TRANSFER_MODE_NONE) {
-                if (FD_ISSET(session->data_sock, &rfds) || FD_ISSET(session->data_sock, &wfds)) {
-                    if (session->transfer.connection_pending) {
-                        ftp_data_poll(session);
-                    } else {
-                        ftp_data_transfer_progress(session);
-                    }
-                }
-            }
-        }
-    }
-
-#endif
 
     return FTP_API_LOOP_ERROR_OK;
 }
