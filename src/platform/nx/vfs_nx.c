@@ -39,6 +39,7 @@ static const FtpVfs* g_vfs[] = {
     [VFS_TYPE_STDIO] = &g_vfs_stdio,
     [VFS_TYPE_HDD] = &g_vfs_hdd,
 #endif
+    [VFS_TYPE_USER] = NULL,
 };
 
 static bool is_path(const char* path, const char* name) {
@@ -275,10 +276,9 @@ static const struct MountEntry BIS_NAMES[] = {
     { "bis_system", FsBisPartitionId_System },
 };
 
-void vfs_nx_init(bool enable_devices, bool save_writable, bool mount_bis) {
+void vfs_nx_init(const struct VfsNxCustomPath* custom, bool enable_devices, bool save_writable, bool mount_bis) {
     g_enabled_devices = enable_devices;
     if (g_enabled_devices) {
-
         // sorted based on most common
         const NcmStorageId ids[NCM_SIZE] = {
             NcmStorageId_SdCard,
@@ -383,6 +383,11 @@ void vfs_nx_init(bool enable_devices, bool save_writable, bool mount_bis) {
             vfs_nx_add_device("hdd", VFS_TYPE_HDD);
         }
 #endif
+        if (custom) {
+            vfs_nx_add_device(custom->name, VFS_TYPE_USER);
+            g_vfs[VFS_TYPE_USER] = custom->func;
+        }
+
         vfs_root_init(g_device, &g_device_count);
 
         u64 LanguageCode;

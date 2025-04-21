@@ -46,6 +46,7 @@ enum VFS_TYPE {
     VFS_TYPE_STDIO, // used for romfs and hdd
     VFS_TYPE_HDD, // list hdd, uses unistd
 #endif
+    VFS_TYPE_USER,
 };
 
 struct FtpVfsFile {
@@ -66,6 +67,7 @@ struct FtpVfsFile {
         struct VfsStdioFile stdio;
         struct VfsHddFile usbhsfs;
 #endif
+        void* user;
     };
 };
 
@@ -87,6 +89,7 @@ struct FtpVfsDir {
         struct VfsStdioDir stdio;
         struct VfsHddDir usbhsfs;
 #endif
+        void* user;
     };
 };
 
@@ -140,7 +143,14 @@ typedef struct FtpVfs {
     int (*rename)(const char* src, const char* dst);
 } FtpVfs;
 
-void vfs_nx_init(bool enable_devices, bool save_writable, bool mount_bis);
+
+struct VfsNxCustomPath {
+    const char* name;
+    void* user;
+    FtpVfs* func;
+};
+
+void vfs_nx_init(const struct VfsNxCustomPath* custom, bool enable_devices, bool save_writable, bool mount_bis);
 void vfs_nx_exit(void);
 void vfs_nx_add_device(const char* name, enum VFS_TYPE type);
 
