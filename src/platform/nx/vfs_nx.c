@@ -62,6 +62,8 @@ static enum VFS_TYPE get_type(const char* path) {
                     return g_device_type[i];
                 }
             }
+        } else {
+            return VFS_TYPE_FS;
         }
 
         return VFS_TYPE_NONE;
