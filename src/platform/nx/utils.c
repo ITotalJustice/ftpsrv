@@ -203,11 +203,19 @@ void led_flash(void) {
         .miniCycles[0].finalStepDuration = 0x0,   // Forced 12.5ms.
     };
 
+    Result rc;
     s32 total;
-    HidsysUniquePadId unique_pad_ids[16] = {0};
-    if (R_SUCCEEDED(hidsysGetUniquePadIds(unique_pad_ids, 16, &total))) {
-        for (int i = 0; i < total; i++) {
-            hidsysSetNotificationLedPattern(&pattern, unique_pad_ids[i]);
+    HidsysUniquePadId unique_pad_id;
+
+    rc = hidsysGetUniquePadsFromNpad(HidNpadIdType_Handheld, &unique_pad_id, 1, &total);
+    if (R_SUCCEEDED(rc) && total) {
+        rc = hidsysSetNotificationLedPattern(&pattern, unique_pad_id);
+    }
+
+    if (R_FAILED(rc) || !total) {
+        rc = hidsysGetUniquePadsFromNpad(HidNpadIdType_No1, &unique_pad_id, 1, &total);
+        if (R_SUCCEEDED(rc) && total) {
+            hidsysSetNotificationLedPattern(&pattern, unique_pad_id);
         }
     }
 }

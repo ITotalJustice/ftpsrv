@@ -133,6 +133,7 @@ endfunction(fetch_minini)
 function(ftp_set_compile_definitions target)
     target_compile_definitions(${target}
         PRIVATE
+            HAVE_LSTAT=$<BOOL:${HAVE_LSTAT}>
             HAVE_READLINK=$<BOOL:${HAVE_READLINK}>
             HAVE_GETPWUID=$<BOOL:${HAVE_GETPWUID}>
             HAVE_GETGRGID=$<BOOL:${HAVE_GETGRGID}>
