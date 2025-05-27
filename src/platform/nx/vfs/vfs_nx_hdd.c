@@ -14,6 +14,20 @@
 #include <unistd.h>
 #include <usbhsfs.h>
 
+// if set, ftpsrv will init usbhsfs.
+#ifndef USE_VFS_USBHSFS_INIT
+    #define USE_VFS_USBHSFS_INIT 1
+#endif
+
+// sets the default event index.
+#ifndef USE_VFS_USBHSFS_INDEX
+    #define USE_VFS_USBHSFS_INDEX 0
+#endif
+
+#if (USE_VFS_USBHSFS_INDEX < 0) || (USE_VFS_USBHSFS_INDEX > 3)
+    #error invalid USBHSFS index (0...3)
+#endif
+
 static UsbHsFsDevice g_device[0x20];
 static s32 g_count;
 
@@ -181,11 +195,17 @@ static int vfs_hdd_rename(const char* src, const char* dst) {
 }
 
 Result vfs_hdd_init(void) {
-    return usbHsFsInitialize(0);
+#if USE_VFS_USBHSFS_INIT
+    return usbHsFsInitialize(USE_VFS_USBHSFS_INDEX);
+#else
+    return 0;
+#endif
 }
 
 void vfs_hdd_exit(void) {
+#if USE_VFS_USBHSFS_INIT
     usbHsFsExit();
+#endif
 }
 
 const FtpVfs g_vfs_hdd = {
