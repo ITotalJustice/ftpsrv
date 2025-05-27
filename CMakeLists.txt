@@ -233,6 +233,9 @@ else()
         if (NOT DEFINED USE_VFS_USBHSFS)
             set(USE_VFS_USBHSFS TRUE)
         endif()
+        if (NOT DEFINED USE_VFS_ROMFS)
+            set(USE_VFS_ROMFS TRUE)
+        endif()
 
         ftp_set_options(ftpsrv 769 128 1024*64)
         fetch_minini()
@@ -276,6 +279,7 @@ else()
             USE_VFS_STORAGE=$<BOOL:${USE_VFS_STORAGE}>
             USE_VFS_GC=$<BOOL:${USE_VFS_GC}>
             USE_VFS_USBHSFS=$<BOOL:${USE_VFS_USBHSFS}>
+            USE_VFS_ROMFS=$<BOOL:${USE_VFS_ROMFS}>
         )
 
         if (USE_VFS_USBHSFS)

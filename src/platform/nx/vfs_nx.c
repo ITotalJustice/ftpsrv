@@ -387,6 +387,7 @@ void vfs_nx_init(const struct VfsNxCustomPath* custom, bool enable_devices, bool
 #endif
 
 #if USE_VFS_USBHSFS
+#if USE_VFS_ROMFS
         if (R_SUCCEEDED(romfsMountFromCurrentProcess("romfs"))) {
             vfs_nx_add_device("romfs", VFS_TYPE_STDIO);
         }
@@ -394,6 +395,7 @@ void vfs_nx_init(const struct VfsNxCustomPath* custom, bool enable_devices, bool
         if (R_SUCCEEDED(romfsMountDataStorageFromProgram(0x0100000000001000, "romfs_qlaunch"))) {
             vfs_nx_add_device("romfs_qlaunch", VFS_TYPE_STDIO);
         }
+#endif
 
         if (R_SUCCEEDED(vfs_hdd_init())) {
             vfs_nx_add_device("hdd", VFS_TYPE_HDD);
