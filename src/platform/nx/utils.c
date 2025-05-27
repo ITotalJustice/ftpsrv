@@ -190,6 +190,8 @@ void fsdev_wrapUnmountAll(void) {
             }
         }
     }
+
+    memset(g_fsdev_entries, 0, sizeof(g_fsdev_entries));
 }
 
 void led_flash(void) {

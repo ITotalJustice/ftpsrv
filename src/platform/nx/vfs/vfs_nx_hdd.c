@@ -206,6 +206,9 @@ void vfs_hdd_exit(void) {
 #if USE_VFS_USBHSFS_INIT
     usbHsFsExit();
 #endif
+
+    g_count = 0;
+    memset(g_device, 0, sizeof(g_device));
 }
 
 const FtpVfs g_vfs_hdd = {

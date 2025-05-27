@@ -101,7 +101,8 @@ void vfs_root_init(const struct VfsDeviceEntry* entries, const u32* count) {
 }
 
 void vfs_root_exit(void) {
-
+    g_entries = NULL;
+    g_count = 0;
 }
 
 const FtpVfs g_vfs_root = {

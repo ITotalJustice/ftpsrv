@@ -445,6 +445,8 @@ void vfs_nx_exit(void) {
             ncmContentMetaDatabaseClose(&g_db[i]);
         }
 
+        memset(g_device_type, 0, sizeof(g_device_type));
+        g_device_count = 0;
         g_enabled_devices = false;
     }
 }

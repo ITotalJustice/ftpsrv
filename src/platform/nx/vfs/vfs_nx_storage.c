@@ -248,6 +248,8 @@ void vfs_storage_exit(void) {
             fsStorageClose(&entry->s);
         }
     }
+
+    memset(&g_storage_cache, 0, sizeof(g_storage_cache));
 }
 
 int vfs_storage_internal_open(FsStorage* s, struct VfsStorageFile* f, const char* path, enum FtpVfsOpenMode mode) {

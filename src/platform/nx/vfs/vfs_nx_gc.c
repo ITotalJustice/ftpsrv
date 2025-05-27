@@ -420,6 +420,14 @@ Result vfs_gc_init(void) {
 void vfs_gc_exit(void) {
     gc_unmount();
     fsOpenDeviceOperator(&g_dev);
+
+    memset(&g_dev, 0, sizeof(g_dev));
+    memset(&g_handle, 0, sizeof(g_handle));
+    memset(&g_fs, 0, sizeof(g_fs));
+    memset(&g_db, 0, sizeof(g_db));
+    memset(&g_cs, 0, sizeof(g_cs));
+    memset(&g_app_key, 0, sizeof(g_app_key));
+    memset(g_cert, 0, sizeof(g_cert));
 }
 
 const FtpVfs g_vfs_gc = {

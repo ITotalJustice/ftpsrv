@@ -1064,6 +1064,11 @@ void vfs_save_exit(void) {
             fsFsClose(&entry->fs);
         }
     }
+
+    g_writable = false;
+    g_acc_count = false;
+    memset(g_save_cache, 0, sizeof(g_save_cache));
+    memset(g_acc_profile, 0, sizeof(g_acc_profile));
 }
 
 const FtpVfs g_vfs_save = {
