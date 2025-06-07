@@ -320,8 +320,6 @@ void userAppInit(void) {
         diagAbortWithResult(rc);
     if (R_FAILED(rc = bsdInitialize(&bsd_config, socket_config.num_bsd_sessions, socket_config.bsd_service_type)))
         diagAbortWithResult(rc);
-    if (R_FAILED(rc = socketInitialize(&socket_config)))
-        diagAbortWithResult(rc);
     if (R_FAILED(rc = nifmInitialize(NifmServiceType_User)))
         diagAbortWithResult(rc);
     if (R_FAILED(rc = accountInitialize(IsApplication() ? AccountServiceType_Application : AccountServiceType_System)))
@@ -348,7 +346,6 @@ void userAppExit(void) {
     setExit();
     ncmExit();
     accountExit();
-    socketExit();
     bsdExit();
     nifmExit();
     fsdev_wrapUnmountAll();

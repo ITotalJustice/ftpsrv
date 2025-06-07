@@ -141,13 +141,12 @@ void __libnx_init_time(void);
 
 // Newlib heap configuration function (makes malloc/free work).
 void __libnx_initheap(void) {
-    alignas(0x1000) static char inner_heap[0x1000];
     extern char* fake_heap_start;
     extern char* fake_heap_end;
 
     // Configure the newlib heap.
-    fake_heap_start = inner_heap;
-    fake_heap_end   = inner_heap + sizeof(inner_heap);
+    fake_heap_start = NULL;
+    fake_heap_end   = NULL;
 }
 
 void __appInit(void) {
@@ -202,8 +201,6 @@ void __appInit(void) {
         diagAbortWithResult(rc);
     if (R_FAILED(rc = bsdInitialize(&bsd_config, socket_config.num_bsd_sessions, socket_config.bsd_service_type)))
         diagAbortWithResult(rc);
-    if (R_FAILED(rc = socketInitialize(&socket_config)))
-        diagAbortWithResult(rc);
     if (R_FAILED(rc = accountInitialize(AccountServiceType_System)))
         diagAbortWithResult(rc);
     if (R_FAILED(rc = ncmInitialize()))
@@ -223,7 +220,6 @@ void __appExit(void) {
     setExit();
     ncmExit();
     accountExit();
-    socketExit();
     bsdExit();
     fsdev_wrapUnmountAll();
     fsExit();
