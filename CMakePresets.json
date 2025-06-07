@@ -44,7 +44,10 @@
             "name": "switch",
             "displayName": "switch",
             "inherits": [ "core" ],
-            "toolchainFile": "$env{DEVKITPRO}/cmake/Switch.cmake"
+            "toolchainFile": "$env{DEVKITPRO}/cmake/Switch.cmake",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "MinSizeRel"
+            }
         },
         {
             "name": "ps4",

@@ -258,8 +258,7 @@ int main(int argc, char** argv) {
     + 0xFFF) &~ 0xFFF) \
     * SB_EFFICIENCY
 
-alignas(0x1000) u8 SOCKET_TRANSFER_MEM[SOCKET_TMEM_SIZE];
-const u32 SOCKET_TRANSFER_MEM_SIZE = sizeof(SOCKET_TRANSFER_MEM);
+static alignas(0x1000) u8 SOCKET_TRANSFER_MEM[SOCKET_TMEM_SIZE];
 
 static u32 socketSelectVersion(void) {
     if (hosversionBefore(3,0,0)) {
@@ -321,8 +320,6 @@ void userAppInit(void) {
         diagAbortWithResult(rc);
     if (R_FAILED(rc = bsdInitialize(&bsd_config, socket_config.num_bsd_sessions, socket_config.bsd_service_type)))
         diagAbortWithResult(rc);
-    if (R_FAILED(rc = socketInitialize(&socket_config)))
-        diagAbortWithResult(rc);
     if (R_FAILED(rc = nifmInitialize(NifmServiceType_User)))
         diagAbortWithResult(rc);
     if (R_FAILED(rc = accountInitialize(IsApplication() ? AccountServiceType_Application : AccountServiceType_System)))
@@ -349,7 +346,6 @@ void userAppExit(void) {
     setExit();
     ncmExit();
     accountExit();
-    socketExit();
     bsdExit();
     nifmExit();
     fsdev_wrapUnmountAll();
