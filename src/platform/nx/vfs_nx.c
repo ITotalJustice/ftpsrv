@@ -257,7 +257,31 @@ Result get_app_name2(u64 app_id, NcmContentMetaDatabase* db, NcmContentStorage* 
 Result get_app_name(u64 app_id, NcmContentId* id, struct AppName* name) {
     Result rc;
 
+    // sorted based on most common
+    static const NcmStorageId ids[NCM_SIZE] = {
+        NcmStorageId_SdCard,
+        NcmStorageId_BuiltInUser,
+    };
+
     for (int i = 0; i < NCM_SIZE; i++) {
+        // open ncm cs and db if not already opened.
+        // we do this here rather than at startup due to the fact that ncm
+        // doesn't seem to be ready to be used immediately.
+        Result rc;
+        if (!serviceIsActive(&g_cs[i].s)) {
+            if (R_FAILED(rc = ncmOpenContentStorage(&g_cs[i], ids[i]))) {
+                log_file_fwrite("failed: ncmOpenContentStorage() 0x%X\n", rc);
+                continue;
+            }
+        }
+
+        if (!serviceIsActive(&g_db[i].s)) {
+            if (R_FAILED(rc = ncmOpenContentMetaDatabase(&g_db[i], ids[i]))) {
+                log_file_fwrite("failed: ncmOpenContentMetaDatabase() 0x%X\n", rc);
+                continue;
+            }
+        }
+
         if (R_SUCCEEDED(rc = get_app_name2(app_id, &g_db[i], &g_cs[i], id, name))) {
             return rc;
         }
@@ -281,22 +305,6 @@ static const struct MountEntry BIS_NAMES[] = {
 void vfs_nx_init(const struct VfsNxCustomPath* custom, bool enable_devices, bool save_writable, bool mount_bis) {
     g_enabled_devices = enable_devices;
     if (g_enabled_devices) {
-        // sorted based on most common
-        const NcmStorageId ids[NCM_SIZE] = {
-            NcmStorageId_SdCard,
-            NcmStorageId_BuiltInUser,
-        };
-
-        for (int i = 0; i < NCM_SIZE; i++) {
-            Result rc;
-            if (R_FAILED(rc = ncmOpenContentStorage(&g_cs[i], ids[i]))) {
-                log_file_fwrite("failed: ncmOpenContentStorage() 0x%X\n", rc);
-            }
-            if (R_FAILED(rc = ncmOpenContentMetaDatabase(&g_db[i], ids[i]))) {
-                log_file_fwrite("failed: ncmOpenContentMetaDatabase() 0x%X\n", rc);
-            }
-        }
-
         vfs_nx_add_device("sdmc", VFS_TYPE_FS);
 
         if (!fsdev_wrapMountImage("album_nand", FsImageDirectoryId_Nand)) {

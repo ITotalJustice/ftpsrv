@@ -113,8 +113,7 @@ u32 __nx_fs_num_sessions = 1;
 
 #define NUMBER_OF_SOCKETS (2)
 
-alignas(0x1000) u8 SOCKET_TRANSFER_MEM[SOCKET_TMEM_SIZE * NUMBER_OF_SOCKETS];
-const u32 SOCKET_TRANSFER_MEM_SIZE = sizeof(SOCKET_TRANSFER_MEM);
+static alignas(0x1000) u8 SOCKET_TRANSFER_MEM[SOCKET_TMEM_SIZE * NUMBER_OF_SOCKETS];
 
 static u32 socketSelectVersion(void) {
     if (hosversionBefore(3,0,0)) {

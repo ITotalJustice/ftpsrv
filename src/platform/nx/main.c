@@ -258,8 +258,7 @@ int main(int argc, char** argv) {
     + 0xFFF) &~ 0xFFF) \
     * SB_EFFICIENCY
 
-alignas(0x1000) u8 SOCKET_TRANSFER_MEM[SOCKET_TMEM_SIZE];
-const u32 SOCKET_TRANSFER_MEM_SIZE = sizeof(SOCKET_TRANSFER_MEM);
+static alignas(0x1000) u8 SOCKET_TRANSFER_MEM[SOCKET_TMEM_SIZE];
 
 static u32 socketSelectVersion(void) {
     if (hosversionBefore(3,0,0)) {
